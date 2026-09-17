@@ -30,7 +30,6 @@ export default function Home() {
   const [isRechecking, setIsRechecking] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // 初期化ロード
   useEffect(() => {
     const loadedClients = clientStore.getClients();
     const loadedKnowledges = clientStore.getKnowledges();
@@ -51,23 +50,20 @@ export default function Home() {
 
   if (!mounted || !selectedClient) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center text-[#86868b]">
+        <Loader2 className="w-7 h-7 animate-spin text-[#0066cc]" />
       </div>
     );
   }
 
-  // クライアント切り替え
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
-    // クライアントを切り替えたら生成タブに戻る
     if (activeTab === 'editor') {
       setActiveTab('generate');
       setActiveDraft(null);
     }
   };
 
-  // ナレッジ追加
   const handleAddKnowledge = (newItem: Omit<KnowledgeItem, 'id' | 'createdAt'>) => {
     const item: KnowledgeItem = {
       ...newItem,
@@ -79,20 +75,17 @@ export default function Home() {
     clientStore.saveKnowledges(updated);
   };
 
-  // ナレッジ削除
   const handleDeleteKnowledge = (id: string) => {
     const updated = knowledges.filter((k) => k.id !== id);
     setKnowledges(updated);
     clientStore.saveKnowledges(updated);
   };
 
-  // プロンプト保存
   const handleSavePrompts = (newPrompts: PromptTemplate[]) => {
     setPrompts(newPrompts);
     clientStore.savePrompts(newPrompts);
   };
 
-  // 記事生成完了
   const handleGenerateSuccess = (draft: BlogDraft) => {
     setActiveDraft(draft);
     const updated = [draft, ...drafts];
@@ -101,14 +94,12 @@ export default function Home() {
     setActiveTab('editor');
   };
 
-  // 下書き更新
   const handleUpdateDraft = (updated: BlogDraft) => {
     setActiveDraft(updated);
     clientStore.saveDraft(updated);
     setDrafts((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
   };
 
-  // 下書き削除
   const handleDeleteDraft = (id: string) => {
     clientStore.deleteDraft(id);
     setDrafts((prev) => prev.filter((d) => d.id !== id));
@@ -118,7 +109,6 @@ export default function Home() {
     }
   };
 
-  // ファクトチェック手動再検証
   const handleRecheckFact = async () => {
     if (!activeDraft) return;
     setIsRechecking(true);
@@ -150,7 +140,6 @@ export default function Home() {
     }
   };
 
-  // クライアント追加
   const handleAddClient = (newClient: Client) => {
     const updated = [...clients, newClient];
     setClients(updated);
@@ -159,15 +148,14 @@ export default function Home() {
     setActiveTab('generate');
   };
 
-  // APIキー保存
   const handleSaveApiKey = (key: string) => {
     setApiKey(key);
     clientStore.saveApiKey(key);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* ヘッダー */}
+    <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex flex-col font-sans">
+      {/* Apple Frosted ヘッダー */}
       <Header
         clients={clients}
         selectedClient={selectedClient}
@@ -177,141 +165,138 @@ export default function Home() {
         hasApiKey={!!apiKey}
       />
 
-      {/* メインコンテナ */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* タブナビゲーション */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      {/* サブナビ・タブバー */}
+      <div className="border-b border-[#e5e5ea] bg-white/70 backdrop-blur-md sticky top-14 z-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-12">
           <div className="flex items-center space-x-1 sm:space-x-2">
             <button
               onClick={() => setActiveTab('generate')}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
                 activeTab === 'generate'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-[#1d1d1f] text-white'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7]'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3.5 h-3.5" />
               <span>記事生成</span>
             </button>
 
             {activeDraft && (
               <button
                 onClick={() => setActiveTab('editor')}
-                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
+                className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
                   activeTab === 'editor'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                    : 'text-indigo-400 hover:text-indigo-300 hover:bg-slate-900'
+                    ? 'bg-[#1d1d1f] text-white'
+                    : 'text-[#0066cc] hover:bg-[#f5f5f7]'
                 }`}
               >
-                <FileText className="w-4 h-4" />
-                <span>下書きエディタ・検証</span>
+                <FileText className="w-3.5 h-3.5" />
+                <span>下書きエディタ</span>
               </button>
             )}
 
             <button
               onClick={() => setActiveTab('knowledge')}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
                 activeTab === 'knowledge'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-[#1d1d1f] text-white'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7]'
               }`}
             >
-              <BrainCircuit className="w-4 h-4" />
-              <span>クライアント頭脳 ({knowledges.filter((k) => k.clientId === selectedClient.id).length})</span>
+              <BrainCircuit className="w-3.5 h-3.5" />
+              <span>頭脳ナレッジ ({knowledges.filter((k) => k.clientId === selectedClient.id).length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('prompts')}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
                 activeTab === 'prompts'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-[#1d1d1f] text-white'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7]'
               }`}
             >
-              <Terminal className="w-4 h-4" />
+              <Terminal className="w-3.5 h-3.5" />
               <span>プロンプト設定</span>
             </button>
 
             <button
               onClick={() => setActiveTab('drafts')}
-              className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
                 activeTab === 'drafts'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-[#1d1d1f] text-white'
+                  : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7]'
               }`}
             >
-              <FileText className="w-4 h-4" />
-              <span>履歴・下書き ({drafts.filter((d) => d.clientId === selectedClient.id).length})</span>
+              <FileText className="w-3.5 h-3.5" />
+              <span>下書き一覧 ({drafts.filter((d) => d.clientId === selectedClient.id).length})</span>
             </button>
           </div>
 
-          {/* 現在選択中のクライアント情報 */}
-          <div className="hidden lg:flex items-center space-x-2 text-xs text-slate-400">
-            <span>対象: <strong className="text-slate-200">{selectedClient.name}</strong></span>
-            <span>({selectedClient.industry})</span>
+          <div className="hidden md:flex items-center space-x-2 text-xs text-[#86868b]">
+            <span>店舗: <strong className="text-[#1d1d1f]">{selectedClient.name}</strong></span>
           </div>
         </div>
+      </div>
 
-        {/* タブコンテンツ */}
-        <div className="mt-6">
-          {activeTab === 'generate' && (
-            <ArticleGenerator
-              client={selectedClient}
+      {/* メインコンテンツ */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
+        {activeTab === 'generate' && (
+          <ArticleGenerator
+            client={selectedClient}
+            knowledges={knowledges}
+            prompts={prompts}
+            apiKey={apiKey}
+            onGenerateSuccess={handleGenerateSuccess}
+          />
+        )}
+
+        {activeTab === 'editor' && activeDraft && (
+          <div>
+            <button
+              onClick={() => setActiveTab('drafts')}
+              className="mb-4 text-xs text-[#86868b] hover:text-[#1d1d1f] flex items-center space-x-1 transition"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>下書き一覧に戻る</span>
+            </button>
+            <DraftEditor
+              draft={activeDraft}
               knowledges={knowledges}
-              prompts={prompts}
-              apiKey={apiKey}
-              onGenerateSuccess={handleGenerateSuccess}
+              onUpdateDraft={handleUpdateDraft}
+              onRecheckFact={handleRecheckFact}
+              isRechecking={isRechecking}
             />
-          )}
+          </div>
+        )}
 
-          {activeTab === 'editor' && activeDraft && (
-            <div>
-              <button
-                onClick={() => setActiveTab('drafts')}
-                className="mb-4 text-xs text-slate-400 hover:text-white flex items-center space-x-1 transition"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>下書き一覧に戻る</span>
-              </button>
-              <DraftEditor
-                draft={activeDraft}
-                knowledges={knowledges}
-                onUpdateDraft={handleUpdateDraft}
-                onRecheckFact={handleRecheckFact}
-                isRechecking={isRechecking}
-              />
-            </div>
-          )}
+        {activeTab === 'knowledge' && (
+          <KnowledgeManager
+            client={selectedClient}
+            knowledges={knowledges}
+            onAddKnowledge={handleAddKnowledge}
+            onDeleteKnowledge={handleDeleteKnowledge}
+          />
+        )}
 
-          {activeTab === 'knowledge' && (
-            <KnowledgeManager
-              client={selectedClient}
-              knowledges={knowledges}
-              onAddKnowledge={handleAddKnowledge}
-              onDeleteKnowledge={handleDeleteKnowledge}
-            />
-          )}
+        {activeTab === 'prompts' && (
+          <PromptManager
+            prompts={prompts}
+            onSavePrompts={handleSavePrompts}
+          />
+        )}
 
-          {activeTab === 'prompts' && (
-            <PromptManager
-              prompts={prompts}
-              onSavePrompts={handleSavePrompts}
-            />
-          )}
-
-          {activeTab === 'drafts' && (
-            <DraftList
-              client={selectedClient}
-              drafts={drafts}
-              onSelectDraft={(draft) => {
-                setActiveDraft(draft);
-                setActiveTab('editor');
-              }}
-              onDeleteDraft={handleDeleteDraft}
-              onCreateNew={() => setActiveTab('generate')}
-            />
-          )}
-        </div>
+        {activeTab === 'drafts' && (
+          <DraftList
+            client={selectedClient}
+            drafts={drafts}
+            onSelectDraft={(draft) => {
+              setActiveDraft(draft);
+              setActiveTab('editor');
+            }}
+            onDeleteDraft={handleDeleteDraft}
+            onCreateNew={() => setActiveTab('generate')}
+          />
+        )}
       </main>
 
       {/* モーダル */}

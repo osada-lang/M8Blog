@@ -39,7 +39,6 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
 
   const clientKnowledges = knowledges.filter((k) => k.clientId === client.id);
 
-  // URLスクレイピングハンドラ
   const handleScrape = async () => {
     if (!url) return;
     setIsScraping(true);
@@ -84,7 +83,6 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
       tags,
     });
 
-    // リセット
     setTitle('');
     setContent('');
     setUrl('');
@@ -95,74 +93,72 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
   const getSourceIcon = (type: KnowledgeSourceType) => {
     switch (type) {
       case 'url':
-        return <Globe className="w-4 h-4 text-blue-400" />;
+        return <Globe className="w-4 h-4 text-[#0066cc]" />;
       case 'gbp':
-        return <MapPin className="w-4 h-4 text-emerald-400" />;
+        return <MapPin className="w-4 h-4 text-emerald-600" />;
       case 'sns':
-        return <Share2 className="w-4 h-4 text-purple-400" />;
+        return <Share2 className="w-4 h-4 text-purple-600" />;
       default:
-        return <FileText className="w-4 h-4 text-amber-400" />;
+        return <FileText className="w-4 h-4 text-amber-600" />;
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* 上部ヘッダー */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center space-x-2">
-              <BrainCircuit className="w-6 h-6 text-indigo-400" />
-              <h2 className="text-xl font-bold text-white">
-                {client.name} の「頭脳」（ナレッジベース）
-              </h2>
-            </div>
-            <p className="text-sm text-slate-400 mt-1">
-              ブログ記事生成時に参照する公式資料・HP・GBP情報です。ここに登録されたデータのみを根拠に執筆するため、ハルシネーション（嘘の創作）を防ぐことができます。
-            </p>
+      {/* 上部カード */}
+      <div className="apple-card p-6 flex items-start justify-between">
+        <div>
+          <div className="flex items-center space-x-2">
+            <BrainCircuit className="w-5 h-5 text-[#0066cc]" />
+            <h2 className="text-xl font-semibold text-[#1d1d1f] tracking-tight">
+              {client.name} の頭脳（ナレッジベース）
+            </h2>
           </div>
-          <div className="text-right">
-            <span className="text-2xl font-extrabold text-indigo-400">{clientKnowledges.length}</span>
-            <span className="text-xs text-slate-400 block">登録ナレッジ数</span>
-          </div>
+          <p className="text-xs text-[#86868b] mt-1 max-w-2xl leading-relaxed">
+            ブログ記事生成時に参照する公式資料・HP・GBP情報です。ここに登録されたデータのみを根拠に執筆するため、ハルシネーション（嘘の創作）を厳格に防ぎます。
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="text-2xl font-bold text-[#1d1d1f]">{clientKnowledges.length}</span>
+          <span className="text-[11px] text-[#86868b] block">登録資料数</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* ナレッジ追加フォーム */}
-        <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-xl p-6">
-          <h3 className="text-md font-semibold text-white mb-4 flex items-center space-x-2">
-            <Plus className="w-4 h-4 text-indigo-400" />
+        <div className="lg:col-span-6 apple-card p-6">
+          <h3 className="text-sm font-semibold text-[#1d1d1f] mb-4 flex items-center space-x-1.5">
+            <Plus className="w-4 h-4 text-[#0066cc]" />
             <span>新しいナレッジ（資料）を追加</span>
           </h3>
 
           {/* ソース種別タブ */}
-          <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950 border border-slate-800 rounded-lg mb-4 text-xs font-medium">
+          <div className="grid grid-cols-4 gap-1 p-1 bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl mb-4 text-xs font-medium">
             <button
               type="button"
               onClick={() => setActiveTab('text')}
-              className={`py-2 rounded-md flex items-center justify-center space-x-1 transition ${
-                activeTab === 'text' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1.5 rounded-lg flex items-center justify-center space-x-1 transition ${
+                activeTab === 'text' ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold' : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>資料・テキスト</span>
+              <span>資料</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('url')}
-              className={`py-2 rounded-md flex items-center justify-center space-x-1 transition ${
-                activeTab === 'url' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1.5 rounded-lg flex items-center justify-center space-x-1 transition ${
+                activeTab === 'url' ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold' : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
             >
               <Globe className="w-3.5 h-3.5" />
-              <span>HP・URL抽出</span>
+              <span>HP・URL</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('gbp')}
-              className={`py-2 rounded-md flex items-center justify-center space-x-1 transition ${
-                activeTab === 'gbp' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1.5 rounded-lg flex items-center justify-center space-x-1 transition ${
+                activeTab === 'gbp' ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold' : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
             >
               <MapPin className="w-3.5 h-3.5" />
@@ -171,25 +167,24 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('sns')}
-              className={`py-2 rounded-md flex items-center justify-center space-x-1 transition ${
-                activeTab === 'sns' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              className={`py-1.5 rounded-lg flex items-center justify-center space-x-1 transition ${
+                activeTab === 'sns' ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold' : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>SNS・口コミ</span>
+              <span>SNS</span>
             </button>
           </div>
 
           <form onSubmit={handleAdd} className="space-y-4">
-            {/* URL入力とスクレイピングボタン */}
             {activeTab === 'url' && (
-              <div className="space-y-2 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
-                <label className="text-xs font-medium text-slate-300">対象のWebサイトURL</label>
+              <div className="space-y-2 bg-[#f5f5f7] p-3 rounded-xl border border-[#e5e5ea]">
+                <label className="text-xs font-semibold text-[#1d1d1f]">対象のWebサイトURL</label>
                 <div className="flex space-x-2">
                   <input
                     type="url"
                     placeholder="https://example-clinic.com/service"
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    className="flex-1 bg-white border border-[#d2d2d7] rounded-lg px-3 py-2 text-xs text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:border-[#0066cc]"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                   />
@@ -197,7 +192,7 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
                     type="button"
                     onClick={handleScrape}
                     disabled={isScraping || !url}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg flex items-center space-x-1 transition"
+                    className="apple-pill-btn px-4 py-2 text-xs font-medium flex items-center space-x-1 disabled:opacity-50"
                   >
                     {isScraping ? (
                       <>
@@ -212,14 +207,14 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
                     )}
                   </button>
                 </div>
-                {scrapeError && <p className="text-xs text-rose-400 mt-1">{scrapeError}</p>}
+                {scrapeError && <p className="text-xs text-rose-600 mt-1">{scrapeError}</p>}
               </div>
             )}
 
             {/* タイトル */}
             <div>
-              <label className="text-xs font-medium text-slate-300 block mb-1">
-                資料タイトル / 項目名 <span className="text-rose-400">*</span>
+              <label className="text-xs font-semibold text-[#1d1d1f] block mb-1">
+                資料タイトル <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -228,7 +223,7 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
                     ? '例: Googleビジネスプロフィールの口コミ傾向・店舗案内'
                     : '例: 施術メニュー・特徴・料金補足'
                 }
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-2 text-xs text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:bg-white focus:border-[#0066cc]"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -237,13 +232,13 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
 
             {/* 本文 */}
             <div>
-              <label className="text-xs font-medium text-slate-300 block mb-1">
-                ナレッジ内容（テキスト） <span className="text-rose-400">*</span>
+              <label className="text-xs font-semibold text-[#1d1d1f] block mb-1">
+                ナレッジ内容（テキスト） <span className="text-rose-500">*</span>
               </label>
               <textarea
-                rows={7}
-                placeholder={`記事生成時に参照する具体的な情報を箇条書きや文章で入力してください。\n（例: こだわり、施術の流れ、注意事項、設備、よくある質問など）`}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono text-xs"
+                rows={6}
+                placeholder={`記事生成時に参照する具体的な情報を入力してください。\n（こだわり、施術の流れ、注意事項、よくある質問など）`}
+                className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg p-3 text-xs text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:bg-white focus:border-[#0066cc] font-mono leading-relaxed"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 required
@@ -252,13 +247,13 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
 
             {/* タグ */}
             <div>
-              <label className="text-xs font-medium text-slate-300 block mb-1">タグ（カンマ区切り）</label>
-              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5">
-                <Tag className="w-3.5 h-3.5 text-slate-500 mr-2" />
+              <label className="text-xs font-semibold text-[#1d1d1f] block mb-1">タグ（カンマ区切り）</label>
+              <div className="flex items-center bg-[#f5f5f7] border border-[#d2d2d7] rounded-lg px-3 py-1.5">
+                <Tag className="w-3.5 h-3.5 text-[#86868b] mr-2" />
                 <input
                   type="text"
                   placeholder="例: レーザー治療, 初診案内, Q&A"
-                  className="w-full bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-transparent text-xs text-[#1d1d1f] placeholder-[#86868b] focus:outline-none"
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
                 />
@@ -267,85 +262,83 @@ export const KnowledgeManager: React.FC<KnowledgeManagerProps> = ({
 
             <button
               type="submit"
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm rounded-lg shadow-lg shadow-indigo-600/20 transition flex items-center justify-center space-x-2"
+              className="apple-pill-btn w-full py-2.5 px-4 text-xs font-semibold flex items-center justify-center space-x-1.5"
             >
               <Plus className="w-4 h-4" />
-              <span>頭脳（ナレッジ）に登録する</span>
+              <span>頭脳（ナレッジ）に登録</span>
             </button>
           </form>
         </div>
 
         {/* 登録済みナレッジ一覧 */}
-        <div className="lg:col-span-6 space-y-4">
-          <h3 className="text-md font-semibold text-white flex items-center justify-between">
+        <div className="lg:col-span-6 space-y-3">
+          <h3 className="text-sm font-semibold text-[#1d1d1f] flex items-center justify-between">
             <span>登録済みナレッジ一覧</span>
-            <span className="text-xs text-slate-400">
-              ※ キーワードに応じて関連するナレッジが自動選定されます
+            <span className="text-[11px] text-[#86868b] font-normal">
+              自動関連度マッチング（RAG）
             </span>
           </h3>
 
           {clientKnowledges.length === 0 ? (
-            <div className="bg-slate-900 border border-dashed border-slate-800 rounded-xl p-8 text-center text-slate-400">
-              <BrainCircuit className="w-10 h-10 mx-auto mb-2 text-slate-600" />
-              <p className="text-sm font-medium">まだナレッジが登録されていません</p>
-              <p className="text-xs text-slate-500 mt-1">
-                左側のフォームからHPや店舗資料のテキストを登録してください。
+            <div className="apple-card p-10 text-center text-[#86868b] border-dashed">
+              <BrainCircuit className="w-8 h-8 mx-auto mb-2 text-[#d2d2d7]" />
+              <p className="text-xs font-semibold text-[#1d1d1f]">ナレッジが登録されていません</p>
+              <p className="text-[11px] text-[#86868b] mt-1">
+                左側のフォームからHPや店舗資料を登録してください。
               </p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[620px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
               {clientKnowledges.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition"
+                  className="apple-card p-4 hover:border-[#0066cc]/40 transition"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-2">
-                      <span className="p-1.5 rounded-md bg-slate-800 border border-slate-700">
+                      <span className="p-1.5 rounded-lg bg-[#f5f5f7] border border-[#e5e5ea]">
                         {getSourceIcon(item.sourceType)}
                       </span>
                       <div>
-                        <h4 className="text-sm font-semibold text-white">{item.title}</h4>
+                        <h4 className="text-xs font-semibold text-[#1d1d1f]">{item.title}</h4>
                         {item.sourceUrl && (
                           <a
                             href={item.sourceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-indigo-400 hover:underline flex items-center space-x-1 mt-0.5"
+                            className="text-[11px] text-[#0066cc] hover:underline flex items-center space-x-1 mt-0.5"
                           >
                             <span>{item.sourceUrl}</span>
-                            <ExternalLink className="w-3 h-3" />
+                            <ExternalLink className="w-2.5 h-2.5" />
                           </a>
                         )}
                       </div>
                     </div>
                     <button
                       onClick={() => onDeleteKnowledge(item.id)}
-                      className="text-slate-500 hover:text-rose-400 p-1 rounded transition"
+                      className="text-[#86868b] hover:text-rose-600 p-1 rounded transition"
                       title="削除"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {/* 本文プレビュー */}
-                  <p className="text-xs text-slate-300 mt-3 line-clamp-3 bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 font-mono">
+                  <p className="text-xs text-[#515154] mt-2.5 line-clamp-3 bg-[#f5f5f7] p-2.5 rounded-lg border border-[#e5e5ea] font-mono leading-relaxed">
                     {item.content}
                   </p>
 
-                  {/* タグ & 作成日 */}
                   <div className="flex items-center justify-between mt-3 text-xs">
                     <div className="flex flex-wrap gap-1">
                       {item.tags.map((tag, i) => (
                         <span
                           key={i}
-                          className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700 text-[10px]"
+                          className="px-2 py-0.5 rounded-full bg-[#f5f5f7] text-[#86868b] border border-[#e5e5ea] text-[10px]"
                         >
                           #{tag}
                         </span>
                       ))}
                     </div>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-[10px] text-[#86868b]">
                       {new Date(item.createdAt).toLocaleDateString('ja-JP')}
                     </span>
                   </div>

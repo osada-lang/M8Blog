@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Client, PromptType } from '@/types';
-import { Building2, Sparkles, ShieldAlert, KeyRound, Plus } from 'lucide-react';
+import { Client } from '@/types';
+import { Building2, Sparkles, ShieldAlert, KeyRound, Plus, ChevronDown } from 'lucide-react';
 
 interface HeaderProps {
   clients: Client[];
@@ -22,35 +22,32 @@ export const Header: React.FC<HeaderProps> = ({
   hasApiKey,
 }) => {
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* ロゴ・タイトル */}
+    <header className="apple-frosted-nav sticky top-0 z-30 transition-all">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        {/* ロゴ・ブランド */}
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 rounded-full bg-[#1d1d1f] flex items-center justify-center text-white shadow-sm">
+            <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+              <span className="font-semibold text-base text-[#1d1d1f] tracking-tight">
                 M8 Blog Studio
               </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#f5f5f7] text-[#86868b] border border-[#d2d2d7] font-medium">
                 LLMO & Medical
               </span>
             </div>
-            <p className="text-xs text-slate-400 hidden sm:block">
-              クライアント頭脳RAG ＆ ハルシネーション自動検証システム
-            </p>
           </div>
         </div>
 
         {/* クライアント選択・設定 */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           {/* クライアント選択ドロップダウン */}
-          <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-1">
-            <Building2 className="w-4 h-4 text-slate-400 ml-2 mr-1" />
+          <div className="relative flex items-center bg-[#f5f5f7] border border-[#e5e5ea] rounded-full px-3 py-1 text-xs">
+            <Building2 className="w-3.5 h-3.5 text-[#86868b] mr-1.5" />
             <select
-              className="bg-transparent text-sm text-slate-100 font-medium py-1 px-2 focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs text-[#1d1d1f] font-medium focus:outline-none cursor-pointer pr-4 appearance-none"
               value={selectedClient?.id || ''}
               onChange={(e) => {
                 const found = clients.find((c) => c.id === e.target.value);
@@ -58,37 +55,39 @@ export const Header: React.FC<HeaderProps> = ({
               }}
             >
               {clients.map((c) => (
-                <option key={c.id} value={c.id} className="bg-slate-800 text-slate-100">
-                  {c.name} ({c.promptType === 'medical' ? '🏥 医療系' : '🏢 普通'})
+                <option key={c.id} value={c.id} className="bg-white text-[#1d1d1f]">
+                  {c.name} ({c.promptType === 'medical' ? '医療系' : '普通'})
                 </option>
               ))}
             </select>
+            <ChevronDown className="w-3 h-3 text-[#86868b] absolute right-2.5 pointer-events-none" />
+            
             <button
               onClick={onOpenNewClientModal}
               title="新規クライアントを追加"
-              className="p-1 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition"
+              className="ml-1 pl-1.5 border-l border-[#d2d2d7] text-[#86868b] hover:text-[#0066cc] transition"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* プロンプトタイプバッジ */}
           {selectedClient && (
             <div
-              className={`hidden md:flex items-center text-xs px-2.5 py-1.5 rounded-lg border font-medium ${
+              className={`hidden md:flex items-center text-xs px-2.5 py-1 rounded-full font-medium border ${
                 selectedClient.promptType === 'medical'
-                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  ? 'bg-rose-50 border-rose-200 text-rose-700'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-700'
               }`}
             >
               {selectedClient.promptType === 'medical' ? (
                 <>
-                  <ShieldAlert className="w-3.5 h-3.5 mr-1" />
-                  医療系プロンプト（薬機法ガード適用）
+                  <ShieldAlert className="w-3.5 h-3.5 mr-1 text-rose-600" />
+                  医療系（薬機法ガード）
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3.5 h-3.5 mr-1" />
+                  <Sparkles className="w-3.5 h-3.5 mr-1 text-emerald-600" />
                   普通モード（LLMO最適化）
                 </>
               )}
@@ -98,13 +97,13 @@ export const Header: React.FC<HeaderProps> = ({
           {/* API Key設定ボタン */}
           <button
             onClick={onOpenApiKeyModal}
-            className={`flex items-center text-xs px-3 py-1.5 rounded-lg border transition ${
+            className={`flex items-center text-xs px-3 py-1 rounded-full border transition font-medium ${
               hasApiKey
-                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-                : 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20 animate-pulse'
+                ? 'bg-white border-[#d2d2d7] text-[#1d1d1f] hover:bg-[#f5f5f7]'
+                : 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
             }`}
           >
-            <KeyRound className="w-3.5 h-3.5 mr-1.5" />
+            <KeyRound className="w-3 h-3 mr-1 text-[#86868b]" />
             <span>{hasApiKey ? 'Claude API設定済' : 'APIキー設定'}</span>
           </button>
         </div>
