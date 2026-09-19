@@ -6,9 +6,8 @@ import { clientStore } from '@/lib/store';
 import { Header } from '@/components/Header';
 import { KnowledgeManager } from '@/components/KnowledgeManager';
 import { SimpleGenerator } from '@/components/SimpleGenerator';
-import { ApiKeyModal } from '@/components/ApiKeyModal';
 import { ClientModal } from '@/components/ClientModal';
-import { Sparkles, BrainCircuit, Loader2 } from 'lucide-react';
+import { Sparkles, BookOpen, Loader2 } from 'lucide-react';
 
 type MainTab = 'generate' | 'knowledge';
 
@@ -21,7 +20,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<MainTab>('generate');
   const [apiKey, setApiKey] = useState('');
 
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -87,24 +85,17 @@ export default function Home() {
     setActiveTab('generate');
   };
 
-  const handleSaveApiKey = (key: string) => {
-    setApiKey(key);
-    clientStore.saveApiKey(key);
-  };
-
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex flex-col font-sans">
-      {/* Apple Frosted ヘッダー */}
+      {/* Apple Frosted ヘッダー（シンプル化） */}
       <Header
         clients={clients}
         selectedClient={selectedClient}
         onSelectClient={handleSelectClient}
         onOpenNewClientModal={() => setIsClientModalOpen(true)}
-        onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
-        hasApiKey={!!apiKey}
       />
 
-      {/* 超シンプルな2画面タブバー */}
+      {/* 2大ナビゲーションバー */}
       <div className="border-b border-[#e5e5ea] bg-white/70 backdrop-blur-md sticky top-14 z-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 flex items-center justify-between h-12">
           <div className="flex items-center space-x-2">
@@ -128,13 +119,13 @@ export default function Home() {
                   : 'text-[#86868b] hover:text-[#1d1d1f] hover:bg-[#f5f5f7]'
               }`}
             >
-              <BrainCircuit className="w-3.5 h-3.5" />
+              <BookOpen className="w-3.5 h-3.5" />
               <span>文献要約集 ({knowledges.filter((k) => k.clientId === selectedClient.id).length})</span>
             </button>
           </div>
 
           <div className="text-xs text-[#86868b]">
-            <span>店舗: <strong className="text-[#1d1d1f]">{selectedClient.name}</strong></span>
+            <span>対象: <strong className="text-[#1d1d1f]">{selectedClient.name}</strong></span>
           </div>
         </div>
       </div>
@@ -162,14 +153,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* モーダル */}
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => setIsApiKeyModalOpen(false)}
-        apiKey={apiKey}
-        onSaveApiKey={handleSaveApiKey}
-      />
-
+      {/* 新規クライアント登録モーダル */}
       <ClientModal
         isOpen={isClientModalOpen}
         onClose={() => setIsClientModalOpen(false)}

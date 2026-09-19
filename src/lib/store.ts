@@ -1,7 +1,7 @@
 import { BlogDraft, Client, KeywordSheetRow, KnowledgeItem, PromptTemplate } from '@/types';
 import { DEFAULT_PROMPT_TEMPLATES } from './defaultPrompts';
 
-// 初期クライアント（スプシURL付き）
+// 初期クライアント（スプシURL ＆ ドキュメントURL完備）
 export const INITIAL_CLIENTS: Client[] = [
   {
     id: 'client-senisuru',
@@ -10,6 +10,7 @@ export const INITIAL_CLIENTS: Client[] = [
     promptType: 'general',
     description: '名古屋を拠点に企業のSNS運用・動画制作・採用ブランディングを支援',
     spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1hIvLlX5Ba_5WHZNAU73KA82v5p01UIgK8qepnLj98Vc/edit?gid=1811296889#gid=1811296889',
+    documentUrl: 'https://docs.google.com/document/d/1Z_mfnLt9gig-yqQIaqYuUO1DsBhdGd43uLXtfMwP1k0/edit?tab=t.0#heading=h.rkpgm39icgi8',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -19,7 +20,8 @@ export const INITIAL_CLIENTS: Client[] = [
     industry: '美容皮膚科・エイジングケア',
     promptType: 'medical',
     description: 'ピコレーザーや肌診断に基づくパーソナライズ治療',
-    spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/example',
+    spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1hIvLlX5Ba_5WHZNAU73KA82v5p01UIgK8qepnLj98Vc/edit?gid=1811296889#gid=1811296889',
+    documentUrl: 'https://docs.google.com/document/d/1Z_mfnLt9gig-yqQIaqYuUO1DsBhdGd43uLXtfMwP1k0/edit?tab=t.0#heading=h.rkpgm39icgi8',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -57,7 +59,7 @@ export const INITIAL_KNOWLEDGES: KnowledgeItem[] = [
   },
 ];
 
-// 孫記事のみの初期キーワードリスト（スプレッドシートのB列＝「孫」の行）
+// 孫記事キーワード一覧（スプレッドシートのB列＝「孫」の全行）
 export const INITIAL_SHEET_ROWS: Record<string, KeywordSheetRow[]> = {
   'client-senisuru': [
     {
@@ -99,6 +101,32 @@ export const INITIAL_SHEET_ROWS: Record<string, KeywordSheetRow[]> = {
       uniquePoint: '接客業の経験がSNSマーケティングの現場でどう武器になるかという具体例に特化。',
       suggestKeywords: '接客経験 転職 SNS, 未経験強み',
     },
+    {
+      id: 'row-11',
+      day: '11',
+      role: '孫',
+      category: '未経験・適性判断',
+      mainKeyword: 'SNSマーケティング 営業 経験 活かせる',
+      reachKeyword: '営業職からSNSマーケティングへの転職',
+      searchIntent: '法人営業や個人営業の経験をSNSマーケティングでどう活かせるか、提案力や折衝力が武器になるのか確認したい。',
+      targetAudience: '営業職からマーケティング領域へのキャリアチェンジを検討している20代〜30代。',
+      conclusion: '営業で培った「課題ヒアリング力」「数値目標へのコミット力」「提案力」は、SNS運用におけるクライアント提案や分析改善で最大の強みになる。',
+      uniquePoint: '営業経験者のスキルがSNSマーケティング職で即戦力化する理由に特化。',
+      suggestKeywords: '営業経験 マーケティング転職, 提案力',
+    },
+    {
+      id: 'row-12',
+      day: '12',
+      role: '孫',
+      category: '働き方・両立判断',
+      mainKeyword: 'SNSディレクター リモート 在宅 勤務',
+      reachKeyword: 'SNSディレクターの在宅勤務実態',
+      searchIntent: 'SNSディレクターはフルリモートで働けるのか、撮影や顧客対応での出社頻度はどのくらいか実態を知りたい。',
+      targetAudience: '在宅勤務や柔軟な働き方を希望してSNS業界への転職を考える求職者。',
+      conclusion: '企画・構成・分析はリモート可能だが、クライアント先での撮影や対面打ち合わせなど外出・出社が必要な場面もある。制度と実態のバランスが重要。',
+      uniquePoint: 'SNSディレクターにおけるリモートと現場出社のリアルな割合・運用実態に特化。',
+      suggestKeywords: 'リモートワーク実態, 出社頻度',
+    },
   ],
   'client-clinic': [
     {
@@ -118,11 +146,11 @@ export const INITIAL_SHEET_ROWS: Record<string, KeywordSheetRow[]> = {
 };
 
 const STORAGE_KEYS = {
-  CLIENTS: 'm8blog_clients_v3',
-  KNOWLEDGES: 'm8blog_knowledges_v3',
-  PROMPTS: 'm8blog_prompts_v3',
-  SHEET_ROWS: 'm8blog_sheet_rows_v3',
-  API_KEY: 'm8blog_anthropic_api_key_v3',
+  CLIENTS: 'm8blog_clients_v4',
+  KNOWLEDGES: 'm8blog_knowledges_v4',
+  PROMPTS: 'm8blog_prompts_v4',
+  SHEET_ROWS: 'm8blog_sheet_rows_v4',
+  API_KEY: 'm8blog_anthropic_api_key_v4',
 };
 
 export const clientStore = {
