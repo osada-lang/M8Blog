@@ -89,11 +89,11 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto w-full">
       {/* 操作パネル */}
-      <div className="apple-card p-6 sm:p-8 space-y-6">
+      <div className="apple-card p-5 sm:p-8 space-y-6">
         <div>
-          <h2 className="text-xl font-semibold text-[#1d1d1f] tracking-tight">
+          <h2 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">
             ブログ記事を生成する
           </h2>
         </div>
@@ -111,7 +111,7 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
               </label>
               <div className="relative">
                 <select
-                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-xl px-4 py-3 text-sm font-semibold text-[#1d1d1f] focus:outline-none focus:bg-white focus:border-[#0066cc] focus:ring-2 focus:ring-[#0066cc]/20 appearance-none cursor-pointer pr-10"
+                  className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-[#1d1d1f] focus:outline-none focus:bg-white focus:border-[#0066cc] focus:ring-2 focus:ring-[#0066cc]/20 appearance-none cursor-pointer pr-10"
                   value={selectedRow?.id || ''}
                   onChange={(e) => setSelectedRowId(e.target.value)}
                 >
@@ -148,7 +148,7 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
                 </button>
 
                 {isDetailsOpen && (
-                  <div className="p-5 border-t border-[#e5e5ea] space-y-4 bg-[#f5f5f7] animate-in fade-in duration-150">
+                  <div className="p-4 sm:p-5 border-t border-[#e5e5ea] space-y-3.5 bg-[#f5f5f7] max-h-80 overflow-y-auto animate-in fade-in duration-150">
                     {/* 1. 想定読者 */}
                     <div>
                       <span className="text-xs font-bold text-[#1d1d1f] block mb-1">
@@ -206,29 +206,31 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
             )}
 
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 break-all leading-relaxed">
                 {errorMsg}
               </div>
             )}
 
-            {/* 生成ボタン */}
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating || !selectedRow}
-              className="apple-pill-btn w-full py-3.5 px-6 text-sm font-semibold flex items-center justify-center space-x-2 shadow-sm disabled:opacity-50"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Claude 3.5 Sonnet で執筆中（文献照合・ファクトチェック）...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>この記事を生成する（Claude 3.5 Sonnet）</span>
-                </>
-              )}
-            </button>
+            {/* 生成ボタン（テキスト幅・モデル名削除・レスポンシブ） */}
+            <div className="pt-2">
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating || !selectedRow}
+                className="apple-pill-btn inline-flex items-center justify-center space-x-2 py-3 px-6 sm:px-7 text-xs sm:text-sm font-semibold shadow-sm disabled:opacity-50 transition w-full sm:w-auto"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>執筆中（文献照合・ファクトチェック）...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>この記事を生成する</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
       </div>

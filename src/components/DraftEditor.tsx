@@ -85,37 +85,26 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
   return (
     <div className="space-y-6">
       {/* 記事タイトル & 操作ヘッダー */}
-      <div className="apple-card p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center space-x-2">
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#f5f5f7] border border-[#e5e5ea] text-[#0066cc] font-medium">
-                {draft.keyword}
-              </span>
-              {draft.promptType === 'medical' ? (
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 font-medium">
-                  医療系下書き
-                </span>
-              ) : (
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium">
-                  普通モード
-                </span>
-              )}
-            </div>
-            <h2 className="text-xl font-semibold text-[#1d1d1f] tracking-tight">{draft.title}</h2>
+      <div className="apple-card p-5 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#f5f5f7] border border-[#e5e5ea] text-[#0066cc] font-medium">
+              {draft.keyword}
+            </span>
+            <h2 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">{draft.title}</h2>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 shrink-0">
             <button
               onClick={handleCopyMarkdown}
-              className="apple-secondary-btn flex items-center space-x-1.5 px-4 py-1.5 text-xs font-medium"
+              className="apple-secondary-btn flex items-center space-x-1.5 px-3.5 sm:px-4 py-1.5 text-xs font-medium"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copied ? 'コピー完了' : 'Markdownコピー'}</span>
             </button>
             <button
               onClick={handleDownloadMarkdown}
-              className="apple-secondary-btn flex items-center space-x-1.5 px-4 py-1.5 text-xs font-medium"
+              className="apple-secondary-btn flex items-center space-x-1.5 px-3.5 sm:px-4 py-1.5 text-xs font-medium"
             >
               <Download className="w-3.5 h-3.5" />
               <span>.md保存</span>
@@ -125,14 +114,14 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
 
         {/* ファクトチェックスコアバー */}
         {factCheck && (
-          <div className="mt-4 pt-4 border-t border-[#e5e5ea] flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center space-x-3">
-              <div className={`flex items-center text-xs px-3 py-1.5 rounded-full border font-semibold ${scoreInfo?.bg}`}>
+          <div className="mt-4 pt-4 border-t border-[#e5e5ea] flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className={`flex items-center text-xs px-3 py-1 rounded-full border font-semibold ${scoreInfo?.bg}`}>
                 {scoreInfo?.icon}
-                <span>ファクト信頼度スコア: {factCheck.score} / 100点</span>
+                <span>ファクト信頼度: {factCheck.score}点</span>
               </div>
               <span className="text-xs text-[#86868b]">
-                （指摘事項: {factCheck.totalIssues}件）
+                （指摘: {factCheck.totalIssues}件）
               </span>
             </div>
             <p className="text-xs text-[#86868b]">
@@ -164,7 +153,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                 }`}
               >
                 <FileEdit className="w-3.5 h-3.5" />
-                <span>Markdown直接編集</span>
+                <span>直接編集</span>
               </button>
             </div>
             <span className="text-xs text-[#86868b]">
@@ -173,8 +162,8 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           </div>
 
           {viewMode === 'preview' ? (
-            <div className="apple-card p-8 text-[#1d1d1f] max-w-none">
-              <div className="whitespace-pre-wrap font-sans leading-relaxed text-sm space-y-3">
+            <div className="apple-card p-5 sm:p-8 text-[#1d1d1f] max-w-none">
+              <div className="whitespace-pre-wrap font-sans leading-relaxed text-xs sm:text-sm space-y-3">
                 {draft.contentMarkdown}
               </div>
             </div>
@@ -188,7 +177,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           )}
 
           {/* メタ情報 */}
-          <div className="apple-card p-5 space-y-3">
+          <div className="apple-card p-4 sm:p-5 space-y-3">
             <h3 className="text-xs font-semibold text-[#86868b] uppercase tracking-wider">
               記事メタ情報（LLMO / SEO設定）
             </h3>
@@ -216,7 +205,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
 
         {/* 右側: ファクトチェック指摘 */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="apple-card p-5 space-y-4">
+          <div className="apple-card p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-[#1d1d1f] flex items-center space-x-1.5">
                 <ShieldCheck className="w-4 h-4 text-[#0066cc]" />
@@ -238,7 +227,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                 <Check className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
                 <p className="text-xs font-semibold text-emerald-800">リスク表現は検出されませんでした</p>
                 <p className="text-[11px] text-emerald-700 mt-0.5">
-                  元ナレッジに忠実で、薬機法・誇大広告の懸念はありません。
+                  元文献データに忠実で、創作・誇大広告の懸念はありません。
                 </p>
               </div>
             ) : (
@@ -295,14 +284,14 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
             )}
           </div>
 
-          {/* 参照されたナレッジ */}
-          <div className="apple-card p-5 space-y-3">
+          {/* 参照された文献 */}
+          <div className="apple-card p-4 sm:p-5 space-y-3">
             <h3 className="text-xs font-semibold text-[#86868b] uppercase tracking-wider flex items-center space-x-1.5">
               <BookOpen className="w-3.5 h-3.5 text-[#0066cc]" />
-              <span>根拠として参照された頭脳資料</span>
+              <span>根拠として参照された文献データ</span>
             </h3>
             {draft.usedKnowledgeIds.length === 0 ? (
-              <p className="text-xs text-[#86868b]">ナレッジの参照はありません（汎用生成）</p>
+              <p className="text-xs text-[#86868b]">文献の参照はありません</p>
             ) : (
               <ul className="space-y-2">
                 {knowledges
@@ -312,10 +301,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                       key={k.id}
                       className="text-xs bg-[#f5f5f7] p-2.5 rounded-xl border border-[#e5e5ea] text-[#1d1d1f]"
                     >
-                      <span className="font-semibold block">{k.title}</span>
-                      <span className="text-[10px] text-[#86868b] block mt-0.5">
-                        種別: {k.sourceType.toUpperCase()}
-                      </span>
+                      <span className="font-semibold block truncate">{k.title}</span>
                     </li>
                   ))}
               </ul>
