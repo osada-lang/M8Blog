@@ -1,14 +1,15 @@
 import { BlogDraft, Client, KeywordSheetRow, KnowledgeItem, PromptTemplate } from '@/types';
 import { DEFAULT_PROMPT_TEMPLATES } from './defaultPrompts';
 
-// 初期クライアント（セニスル ＆ 美容クリニック）
+// 初期クライアント（スプシURL付き）
 export const INITIAL_CLIENTS: Client[] = [
   {
     id: 'client-senisuru',
     name: '株式会社セニスル',
-    industry: 'SNSマーケティング・SNS採用支援',
+    industry: 'SNSマーケティング・採用支援',
     promptType: 'general',
-    description: '名古屋を拠点にSNS運用・動画制作・採用ブランディングを展開する企業',
+    description: '名古屋を拠点に企業のSNS運用・動画制作・採用ブランディングを支援',
+    spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/1hIvLlX5Ba_5WHZNAU73KA82v5p01UIgK8qepnLj98Vc/edit?gid=1811296889#gid=1811296889',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -17,7 +18,8 @@ export const INITIAL_CLIENTS: Client[] = [
     name: '表参道スキンケアクリニック',
     industry: '美容皮膚科・エイジングケア',
     promptType: 'medical',
-    description: 'ピコレーザーや肌画像診断に基づくパーソナライズ治療を提供するクリニック',
+    description: 'ピコレーザーや肌診断に基づくパーソナライズ治療',
+    spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/example',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -53,91 +55,74 @@ export const INITIAL_KNOWLEDGES: KnowledgeItem[] = [
     tags: ['セニスル会社情報', '職種一覧', '研修・働き方'],
     createdAt: new Date().toISOString(),
   },
-  {
-    id: 'know-clinic-1',
-    clientId: 'client-clinic',
-    title: '文献要約: 美容医療ガイドラインとピコレーザーのダウンタイム',
-    sourceType: 'text',
-    content: `【美容医療エビデンス・院内方針】
-1. ピコレーザーの特性: 従来のQスイッチレーザーに比べ熱損傷が少なく、ダウンタイム（赤み・かさぶた）が短い。
-2. 注意点とリスク: 照射後に一時的な赤み、乾燥、色素沈着が生じるリスクがあり、紫外線対策が必須。効果には個人差がある。
-3. 診療方針: 3D肌画像診断を実施し、無理な勧誘は行わない。明確な費用事前提示。`,
-    tags: ['ピコレーザー', 'ガイドライン', 'ダウンタイム'],
-    createdAt: new Date().toISOString(),
-  },
 ];
 
-// 初期スプレッドシート（キーワード設計表サンプル）
+// 孫記事のみの初期キーワードリスト（スプレッドシートのB列＝「孫」の行）
 export const INITIAL_SHEET_ROWS: Record<string, KeywordSheetRow[]> = {
   'client-senisuru': [
     {
-      id: 'row-1',
-      day: '1',
-      role: '親',
-      category: '仕事内容・転職判断',
-      mainKeyword: '名古屋 SNSマーケティング 仕事',
-      reachKeyword: 'SNSマーケティングの特徴',
-      searchIntent: 'SNSに関わる求人を見て興味を持ったが、運用・採用・ディレクター・営業の違いが分からず、自分の経験で挑戦できるのか不安になり、仕事内容・適性・働き方・給与・会社選びを整理して転職判断したい。',
-      targetAudience: '名古屋市・愛知県で転職を考える20代〜30代。SNSを仕事にしたい一方、華やかな印象だけで転職して後悔したくないと感じ、仕事内容からキャリアまで整理して応募判断したい人。',
-      conclusion: 'SNSマーケティングの仕事は投稿作業だけでなく、企業課題ヒアリング、企画、動画制作、運用、分析、改善、採用、営業まで幅広い。6つの判断軸を整理すれば自分に合う職種と会社が見える。',
-      uniquePoint: 'SNSマーケティング職への転職判断に必要な6つの意思決定軸を統合する唯一の全体記事。',
-      suggestKeywords: 'SNSマーケティングの特徴, SNSマーケティングの種類',
-      status: 'pending',
+      id: 'row-8',
+      day: '8',
+      role: '孫',
+      category: '仕事内容・職種選択判断',
+      mainKeyword: 'SNSディレクター 動画編集 違い',
+      reachKeyword: 'SNSディレクターと動画編集者の違い',
+      searchIntent: 'SNS関連求人を見てSNSディレクターと動画編集者の両方に興味を持ったが、どちらも動画を扱うため違いが分からず、自分が編集作業を中心にしたいのか、企画・撮影・顧客対応まで担いたいのか整理して応募職種を判断したい。',
+      targetAudience: '名古屋市でSNS求人を探す20代〜30代。動画を仕事にしたい一方、裏方で制作に集中したいのか、人と関わり企画から動かしたいのか迷っている人。',
+      conclusion: '動画編集は「映像を形にする制作特化職」、SNSディレクターは「企画・撮影・顧客対応・改善まで担う進行管理職」。自分が制作に集中したいか全体を動かしたいかで選ぶ。',
+      uniquePoint: '動画編集とSNSディレクターの業務範囲・適性・キャリアの差だけに特化した比較記事。',
+      suggestKeywords: 'SNSディレクター 動画編集 違い, 業務範囲の違い',
     },
     {
-      id: 'row-2',
-      day: '2',
-      role: '準親',
-      category: '職種選択判断',
-      mainKeyword: '名古屋 SNSマーケティング 仕事内容',
-      reachKeyword: 'SNSマーケティングの種類',
-      searchIntent: '求人票に企画・撮影・分析・営業など多くの業務が書かれていて戸惑い、SNSディレクター・採用ディレクター・営業・動画制作の役割を整理して自分に合う職種を選びたい。',
-      targetAudience: '名古屋市でSNS関連求人を探し始めた20代〜30代。結局自分は何を担当するのか違和感を持ち、役割分担を理解したい人。',
-      conclusion: 'SNSディレクター（進行・企画）、採用ディレクター（採用課題解決）、動画編集（制作）、法人営業（提案）など役割が分かれている。「つくる・進める・提案する」のどこに強みを持つかで選ぶ。',
-      uniquePoint: 'SNSマーケティングに関わる職種全体の担当範囲と役割分担の整理だけに特化。',
-      suggestKeywords: 'SNSマーケティングの種類, 職種別の違い',
-      status: 'pending',
+      id: 'row-9',
+      day: '9',
+      role: '孫',
+      category: '仕事内容・職種選択判断',
+      mainKeyword: '採用ディレクター SNS運用 違い',
+      reachKeyword: '採用ディレクターとSNS運用担当の違い',
+      searchIntent: 'SNS運用の求人と採用ディレクターの求人の違いが分からず、再生数を伸ばす仕事と採用課題を解決する仕事の違いを整理して判断したい。',
+      targetAudience: '企業の採用支援やSNS活用に興味を持つ20代〜30代。単なるSNS投稿ではなく採用成果に関わりたい人。',
+      conclusion: '一般的なSNS運用は「認知・集客・再生数」を目的とし、採用ディレクターは「母集団形成・企業理解・応募獲得」という採用成果を目的とする。',
+      uniquePoint: '目的が「集客」か「採用」かによるディレクション業務の本質的な違いに特化。',
+      suggestKeywords: '採用ディレクター SNS運用 違い, 採用SNSの特徴',
     },
     {
-      id: 'row-3',
-      day: '3',
-      role: '準親',
+      id: 'row-10',
+      day: '10',
+      role: '孫',
       category: '未経験・適性判断',
-      mainKeyword: '名古屋 SNSマーケティング 未経験',
-      reachKeyword: 'SNSマーケティングはどんな人に向いている？',
-      searchIntent: '未経験歓迎の求人を見たが、普段SNSを使う程度で通用するのか不安。活かせる前職経験や必要な適性を整理して挑戦すべきか判断したい。',
-      targetAudience: '異業種（営業・接客・事務など）からSNS業界へ転職を考える20代〜30代。未経験でもついていけるか不安な人。',
-      conclusion: '未経験でも挑戦可能だが、SNSへの興味だけでなく段取り力、顧客対応、質問力、好奇心が重要。既存の接客や事務の経験をどう活かせるか整理すると判断しやすい。',
-      uniquePoint: 'SNSマーケティングへ未経験から挑戦できるかという適性判断全体に特化。',
-      suggestKeywords: '未経験適性, 向いている人',
-      status: 'pending',
+      mainKeyword: 'SNSマーケティング 接客 経験 活かせる',
+      reachKeyword: '接客業からSNSマーケティングへの転職',
+      searchIntent: 'アパレルや飲食などの接客経験しかないが、SNSマーケティングへ転職できるか不安。活かせるスキルや強みを整理したい。',
+      targetAudience: '接客・販売・サービス業からSNS業界への転職を検討している20代。専門スキルがないと諦めかけている人。',
+      conclusion: '接客で培った「顧客の意図を汲み取る力」「丁寧なコミュニケーション」「トレンドへの敏感さ」は、SNSの企画やクライアント対応に直結する大きな強みになる。',
+      uniquePoint: '接客業の経験がSNSマーケティングの現場でどう武器になるかという具体例に特化。',
+      suggestKeywords: '接客経験 転職 SNS, 未経験強み',
     },
   ],
   'client-clinic': [
     {
       id: 'row-c1',
       day: '1',
-      role: '親',
+      role: '孫',
       category: '症状・治療理解',
-      mainKeyword: 'ピコレーザー ダウンタイム 経過',
-      reachKeyword: 'ピコトーニング ダウンタイム 赤み',
-      searchIntent: 'ピコレーザー施術後の赤みやかさぶたが何日続くか不安で、仕事や予定に影響がないか確認したい。',
-      targetAudience: '初めてピコレーザー治療を検討している20代〜40代。ダウンタイムの期間やメイク再開の目安を知りたい人。',
-      conclusion: 'ピコレーザーは熱ダメージが少なく、トーニングなら数時間〜翌日の赤み、スポット照射なら3〜7日程度のかさぶたで経過する。紫外線対策と保湿が重要。',
-      uniquePoint: 'ピコレーザーの照射モード別（トーニング・スポット・フラクショナル）のダウンタイム経過と過ごし方の客観的比較。',
-      suggestKeywords: 'ダウンタイム日数, メイク再開',
-      status: 'pending',
+      mainKeyword: 'ピコトーニング ダウンタイム 経過 赤み',
+      reachKeyword: 'ピコトーニング 翌日の赤み メイク',
+      searchIntent: 'ピコトーニング照射後の赤みが何時間で引くのか、翌日の仕事やメイクに支障がないか確認したい。',
+      targetAudience: '初めてピコトーニングを受ける20代〜40代女性。ダウンタイムの具体的な経過を知りたい人。',
+      conclusion: 'ピコトーニングは熱ダメージが少なく、赤みは数時間〜翌日には落ち着くケースがほとんど。当日からミネラルメイク可能。',
+      uniquePoint: 'ピコトーニング特有のダウンタイム経過と翌日の過ごし方・注意点に特化。',
+      suggestKeywords: 'ピコトーニング 赤み 経過, 翌日メイク',
     },
   ],
 };
 
 const STORAGE_KEYS = {
-  CLIENTS: 'm8blog_clients_v2',
-  KNOWLEDGES: 'm8blog_knowledges_v2',
-  PROMPTS: 'm8blog_prompts_v2',
-  SHEET_ROWS: 'm8blog_sheet_rows_v2',
-  DRAFTS: 'm8blog_drafts_v2',
-  API_KEY: 'm8blog_anthropic_api_key_v2',
+  CLIENTS: 'm8blog_clients_v3',
+  KNOWLEDGES: 'm8blog_knowledges_v3',
+  PROMPTS: 'm8blog_prompts_v3',
+  SHEET_ROWS: 'm8blog_sheet_rows_v3',
+  API_KEY: 'm8blog_anthropic_api_key_v3',
 };
 
 export const clientStore = {
@@ -184,11 +169,6 @@ export const clientStore = {
     return JSON.parse(data);
   },
 
-  savePrompts(prompts: PromptTemplate[]) {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEYS.PROMPTS, JSON.stringify(prompts));
-  },
-
   getSheetRows(clientId: string): KeywordSheetRow[] {
     if (typeof window === 'undefined') return INITIAL_SHEET_ROWS[clientId] || [];
     const data = localStorage.getItem(`${STORAGE_KEYS.SHEET_ROWS}_${clientId}`);
@@ -203,34 +183,6 @@ export const clientStore = {
   saveSheetRows(clientId: string, rows: KeywordSheetRow[]) {
     if (typeof window === 'undefined') return;
     localStorage.setItem(`${STORAGE_KEYS.SHEET_ROWS}_${clientId}`, JSON.stringify(rows));
-  },
-
-  getDrafts(clientId?: string): BlogDraft[] {
-    if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.DRAFTS);
-    const drafts: BlogDraft[] = data ? JSON.parse(data) : [];
-    if (clientId) {
-      return drafts.filter((d) => d.clientId === clientId);
-    }
-    return drafts;
-  },
-
-  saveDraft(draft: BlogDraft) {
-    if (typeof window === 'undefined') return;
-    const drafts = this.getDrafts();
-    const index = drafts.findIndex((d) => d.id === draft.id);
-    if (index >= 0) {
-      drafts[index] = draft;
-    } else {
-      drafts.unshift(draft);
-    }
-    localStorage.setItem(STORAGE_KEYS.DRAFTS, JSON.stringify(drafts));
-  },
-
-  deleteDraft(id: string) {
-    if (typeof window === 'undefined') return;
-    const drafts = this.getDrafts().filter((d) => d.id !== id);
-    localStorage.setItem(STORAGE_KEYS.DRAFTS, JSON.stringify(drafts));
   },
 
   getApiKey(): string {
