@@ -10,6 +10,14 @@ export interface GenerationOutput {
   usedKnowledgeIds: string[];
 }
 
+// 利用可能なモデル候補（新しい順・互換性順）
+const CANDIDATE_MODELS = [
+  'claude-3-5-sonnet-latest',
+  'claude-3-5-sonnet-20240620',
+  'claude-3-7-sonnet-latest',
+  'claude-3-haiku-20240307',
+];
+
 export async function generateArticleWithClaude(
   client: Client,
   knowledges: KnowledgeItem[],
@@ -19,7 +27,7 @@ export async function generateArticleWithClaude(
   const apiKey = req.apiKey || process.env.ANTHROPIC_API_KEY;
   const row = req.sheetRow;
 
-  // 文献要約集からキーワードおよび検索意図に関連する章をRAG検索
+  // 文献要約集からキーワードに関連する章をRAG検索
   const ragResult = buildRagContext(
     knowledges,
     row.mainKeyword,
@@ -48,23 +56,46 @@ export async function generateArticleWithClaude(
 
   const anthropic = new Anthropic({ apiKey });
 
-  const response = await anthropic.messages.create({
-    model: 'claude-3-5-sonnet-20241022',
-    max_tokens: 4500,
-    temperature: 0.2, // 創作抑制・事実重視
-    system: promptTemplate.systemPrompt,
-    messages: [
-      {
-        role: 'user',
-        content: userPrompt,
-      },
-    ],
-  });
+  let fullText = '';
+  let lastError: any = null;
 
-  const fullText = response.content
-    .filter((b) => b.type === 'text')
-    .map((b) => (b as any).text)
-    .join('\n');
+  // 候補モデルを順に試行
+  for (const model of CANDIDATE_MODELS) {
+    try {
+      const response = await anthropic.messages.create({
+        model,
+        max_tokens: 4500,
+        temperature: 0.2,
+        system: promptTemplate.systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: userPrompt,
+          },
+        ],
+      });
+
+      fullText = response.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as any).text)
+        .join('\n');
+
+      if (fullText) {
+        break; // 成功したらループ終了
+      }
+    } catch (err: any) {
+      lastError = err;
+      // 404 not_found_error なら次のモデルへフォールバック
+      if (err?.status === 404 || err?.message?.includes('not_found_error') || err?.message?.includes('model')) {
+        continue;
+      }
+      throw err; // 認証エラーやレートリミット等の場合は即座にスロー
+    }
+  }
+
+  if (!fullText) {
+    throw lastError || new Error('Claudeモデルでの記事生成に失敗しました');
+  }
 
   return parseGeneratedArticle(fullText, row.mainKeyword, ragResult.usedKnowledgeIds);
 }
