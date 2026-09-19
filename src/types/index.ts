@@ -3,10 +3,9 @@ export type PromptType = 'general' | 'medical';
 export interface Client {
   id: string;
   name: string;
-  industry: string; // 例: 美容皮膚科、歯科、整骨院、不動産、ITなど
+  industry: string;
   promptType: PromptType;
   description?: string;
-  targetAudience?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,10 +34,21 @@ export interface PromptTemplate {
   updatedAt: string;
 }
 
-export interface KeywordJob {
-  keyword: string;
-  subKeywords?: string[];
-  targetSearchIntent?: string;
+// スプレッドシート（キーワード設計表）の1行の定義
+export interface KeywordSheetRow {
+  id: string;
+  day?: string;
+  role?: string; // 親、準親、孫
+  category?: string;
+  mainKeyword: string;
+  reachKeyword?: string;
+  searchIntent: string;
+  targetAudience: string;
+  conclusion: string; // 記事の結論(冒頭AI要約サマリー用）
+  uniquePoint?: string; // 重複チェック用1文
+  suggestKeywords?: string;
+  status: 'pending' | 'generated';
+  draftId?: string;
 }
 
 export interface FactCheckIssue {
@@ -52,7 +62,7 @@ export interface FactCheckIssue {
 }
 
 export interface FactCheckResult {
-  score: number; // 0〜100 (100が最も信頼性が高い)
+  score: number; // 0〜100
   totalIssues: number;
   issues: FactCheckIssue[];
   summary: string;
@@ -63,8 +73,9 @@ export interface FactCheckResult {
 export interface BlogDraft {
   id: string;
   clientId: string;
+  sheetRowId?: string;
   keyword: string;
-  subKeywords: string[];
+  subKeywords?: string[];
   promptType: PromptType;
   title: string;
   contentMarkdown: string;
@@ -79,18 +90,7 @@ export interface BlogDraft {
 
 export interface GenerateArticleRequest {
   clientId: string;
-  keyword: string;
-  subKeywords?: string[];
-  promptType: PromptType;
-  targetAudience?: string;
-  wordCountTarget?: number;
-  customPromptOverride?: string;
-  apiKey?: string;
-}
-
-export interface FactCheckRequest {
-  content: string;
-  clientId: string;
+  sheetRow: KeywordSheetRow;
   promptType: PromptType;
   apiKey?: string;
 }

@@ -19,7 +19,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({
   const [industry, setIndustry] = useState('');
   const [promptType, setPromptType] = useState<PromptType>('general');
   const [description, setDescription] = useState('');
-  const [targetAudience, setTargetAudience] = useState('');
 
   if (!isOpen) return null;
 
@@ -33,7 +32,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({
       industry: industry.trim() || '店舗・サービス',
       promptType,
       description: description.trim(),
-      targetAudience: targetAudience.trim(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -42,13 +40,12 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     setName('');
     setIndustry('');
     setDescription('');
-    setTargetAudience('');
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white border border-[#e5e5ea] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div className="bg-white border border-[#e5e5ea] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-7 h-7 rounded-full bg-[#f5f5f7] border border-[#e5e5ea] flex items-center justify-center text-[#0066cc]">
@@ -82,7 +79,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-[#1d1d1f] block">普通モード</span>
-                  <span className="text-[10px] text-[#86868b] block">一般店舗・企業LLMO</span>
+                  <span className="text-[10px] text-[#86868b] block">365ブログ（一般企業）</span>
                 </div>
               </button>
 
@@ -100,7 +97,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-[#1d1d1f] block">医療系モード</span>
-                  <span className="text-[10px] text-[#86868b] block">クリニック・薬機法配慮</span>
+                  <span className="text-[10px] text-[#86868b] block">629医療用YMYL</span>
                 </div>
               </button>
             </div>
@@ -113,7 +110,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
             </label>
             <input
               type="text"
-              placeholder="例: 銀座美容外科クリニック / 新宿整体院"
+              placeholder="例: 株式会社セニスル / 銀座スキンクリニック"
               className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-xl px-3 py-2 text-xs text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:bg-white focus:border-[#0066cc]"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -121,31 +118,17 @@ export const ClientModal: React.FC<ClientModalProps> = ({
             />
           </div>
 
-          {/* 業種・診療科目 */}
+          {/* 業種 */}
           <div>
             <label className="text-xs font-semibold text-[#1d1d1f] block mb-1">
               業種・診療科目
             </label>
             <input
               type="text"
-              placeholder="例: 美容皮膚科、歯科矯正、パーソナルジムなど"
+              placeholder="例: SNSマーケティング、美容皮膚科、歯科矯正など"
               className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-xl px-3 py-2 text-xs text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:bg-white focus:border-[#0066cc]"
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
-            />
-          </div>
-
-          {/* ターゲット */}
-          <div>
-            <label className="text-xs font-semibold text-[#1d1d1f] block mb-1">
-              想定ターゲット層・読者ペルソナ
-            </label>
-            <input
-              type="text"
-              placeholder="例: 30代〜50代の肌悩みを持つ女性"
-              className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-xl px-3 py-2 text-xs text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:bg-white focus:border-[#0066cc]"
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
             />
           </div>
 
@@ -156,7 +139,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
             </label>
             <textarea
               rows={2}
-              placeholder="例: 最新レーザー設備を導入、駅徒歩1分"
+              placeholder="例: 名古屋のSNS運用・動画制作会社"
               className="w-full bg-[#f5f5f7] border border-[#d2d2d7] rounded-xl px-3 py-2 text-xs text-[#1d1d1f] placeholder-[#86868b] focus:outline-none focus:bg-white focus:border-[#0066cc]"
               value={description}
               onChange={(e) => setDescription(e.target.value)}

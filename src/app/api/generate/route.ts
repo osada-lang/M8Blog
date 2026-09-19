@@ -18,11 +18,11 @@ export async function POST(req: NextRequest) {
       generateRequest: GenerateArticleRequest;
     } = body;
 
-    if (!client || !generateRequest?.keyword) {
-      return NextResponse.json({ error: 'クライアント情報とキーワードは必須です' }, { status: 400 });
+    if (!client || !generateRequest?.sheetRow?.mainKeyword) {
+      return NextResponse.json({ error: 'クライアント情報とキーワード設計情報は必須です' }, { status: 400 });
     }
 
-    // 1. Claude 3.5 Sonnet による下書き生成（RAG適用）
+    // 1. Claude 3.5 Sonnet による下書き生成（文献要約RAG × スプシ各列の完全マッピング）
     const output = await generateArticleWithClaude(
       client,
       knowledges || [],

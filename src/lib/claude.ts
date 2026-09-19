@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { Client, GenerateArticleRequest, PromptTemplate } from '@/types';
+import { Client, GenerateArticleRequest, KnowledgeItem, PromptTemplate } from '@/types';
 import { buildRagContext } from './rag';
-import { KnowledgeItem } from '@/types';
 
 export interface GenerationOutput {
   title: string;
@@ -18,35 +17,41 @@ export async function generateArticleWithClaude(
   req: GenerateArticleRequest
 ): Promise<GenerationOutput> {
   const apiKey = req.apiKey || process.env.ANTHROPIC_API_KEY;
+  const row = req.sheetRow;
 
-  // RAGコンテキストの構築
-  const ragResult = buildRagContext(knowledges, req.keyword, req.subKeywords || []);
+  // 文献要約集からキーワードおよび検索意図に関連する章をRAG検索
+  const ragResult = buildRagContext(
+    knowledges,
+    row.mainKeyword,
+    [row.reachKeyword, row.category].filter(Boolean) as string[],
+    6
+  );
 
-  // テンプレート変数の置換
-  let userPrompt = promptTemplate.userPromptTemplate
+  // ユーザープロンプトテンプレートへの完全マッピング
+  const userPrompt = promptTemplate.userPromptTemplate
     .replace(/\{\{CLIENT_NAME\}\}/g, client.name)
     .replace(/\{\{CLIENT_INDUSTRY\}\}/g, client.industry || '一般')
-    .replace(/\{\{TARGET_AUDIENCE\}\}/g, req.targetAudience || client.targetAudience || '店舗・サービスの利用者')
-    .replace(/\{\{KEYWORD\}\}/g, req.keyword)
-    .replace(/\{\{SUB_KEYWORDS\}\}/g, (req.subKeywords && req.subKeywords.length > 0) ? req.subKeywords.join(', ') : 'なし')
-    .replace(/\{\{KNOWLEDGE_CONTEXT\}\}/g, ragResult.formattedContext)
-    .replace(/\{\{WORD_COUNT\}\}/g, String(req.wordCountTarget || 2000));
+    .replace(/\{\{KEYWORD\}\}/g, row.mainKeyword)
+    .replace(/\{\{REACH_KEYWORD\}\}/g, row.reachKeyword || row.suggestKeywords || '特になし')
+    .replace(/\{\{SEARCH_INTENT\}\}/g, row.searchIntent)
+    .replace(/\{\{SEARCH_STORY\}\}/g, row.searchIntent)
+    .replace(/\{\{TARGET_AUDIENCE\}\}/g, row.targetAudience)
+    .replace(/\{\{CONCLUSION\}\}/g, row.conclusion)
+    .replace(/\{\{ARTICLE_GOAL\}\}/g, row.conclusion)
+    .replace(/\{\{UNIQUE_POINT\}\}/g, row.uniquePoint || 'この記事独自の視点・切り口')
+    .replace(/\{\{KNOWLEDGE_CONTEXT\}\}/g, ragResult.formattedContext);
 
-  if (req.customPromptOverride) {
-    userPrompt += `\n\n【追加指示】\n${req.customPromptOverride}`;
-  }
-
-  // APIキーがない場合のフォールバック（動作確認用シミュレーション）
+  // APIキー未設定時のモック生成（動作確認用）
   if (!apiKey) {
-    return generateMockArticle(client, req, ragResult.usedKnowledgeIds);
+    return generateMockArticle(client, row, ragResult.usedKnowledgeIds);
   }
 
   const anthropic = new Anthropic({ apiKey });
 
   const response = await anthropic.messages.create({
     model: 'claude-3-5-sonnet-20241022',
-    max_tokens: 4000,
-    temperature: 0.2, // ハルシネーション抑制のため低めの温度
+    max_tokens: 4500,
+    temperature: 0.2, // 創作抑制・事実重視
     system: promptTemplate.systemPrompt,
     messages: [
       {
@@ -57,23 +62,19 @@ export async function generateArticleWithClaude(
   });
 
   const fullText = response.content
-    .filter(b => b.type === 'text')
-    .map(b => (b as any).text)
+    .filter((b) => b.type === 'text')
+    .map((b) => (b as any).text)
     .join('\n');
 
-  return parseGeneratedArticle(fullText, req.keyword, ragResult.usedKnowledgeIds);
+  return parseGeneratedArticle(fullText, row.mainKeyword, ragResult.usedKnowledgeIds);
 }
 
-/**
- * 生成されたMarkdownテキストからタイトル、メタディスクリプション、タグをパース
- */
 function parseGeneratedArticle(rawText: string, keyword: string, usedKnowledgeIds: string[]): GenerationOutput {
   const lines = rawText.split('\n');
   let title = `${keyword}に関するお役立ちガイド`;
   let metaDescription = '';
   const suggestedTags: string[] = [keyword];
 
-  // タイトル抽出（最初の # 見出し）
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.startsWith('# ')) {
@@ -82,23 +83,22 @@ function parseGeneratedArticle(rawText: string, keyword: string, usedKnowledgeId
     }
   }
 
-  // メタディスクリプション抽出
-  const metaMatch = rawText.match(/メタディスクリプション[：:]\s*(.+)/i) ||
-                    rawText.match(/概要[：:]\s*(.+)/i);
+  const metaMatch =
+    rawText.match(/メタディスクリプション[：:]\s*(.+)/i) ||
+    rawText.match(/概要[：:]\s*(.+)/i);
   if (metaMatch && metaMatch[1]) {
     metaDescription = metaMatch[1].trim().slice(0, 160);
   } else {
-    // 導入部分から抽出
-    const firstParagraph = lines.find(l => l.trim().length > 30 && !l.startsWith('#')) || '';
+    const firstParagraph = lines.find((l) => l.trim().length > 30 && !l.startsWith('#')) || '';
     metaDescription = firstParagraph.slice(0, 120);
   }
 
-  // タグ抽出
-  const tagMatch = rawText.match(/タグ[：:]\s*(.+)/i) ||
-                   rawText.match(/推奨タグ[：:]\s*(.+)/i);
+  const tagMatch =
+    rawText.match(/タグ[：:]\s*(.+)/i) ||
+    rawText.match(/推奨タグ[：:]\s*(.+)/i);
   if (tagMatch && tagMatch[1]) {
-    const extracted = tagMatch[1].split(/[,、\s]+/).filter(t => t.trim().length > 0 && !t.includes('タグ'));
-    suggestedTags.push(...extracted.map(t => t.replace(/^[#]/, '')));
+    const extracted = tagMatch[1].split(/[,、\s]+/).filter((t) => t.trim().length > 0 && !t.includes('タグ'));
+    suggestedTags.push(...extracted.map((t) => t.replace(/^[#]/, '')));
   }
 
   return {
@@ -110,103 +110,84 @@ function parseGeneratedArticle(rawText: string, keyword: string, usedKnowledgeId
   };
 }
 
-/**
- * APIキー未設定時のリアルな下書き生成シミュレータ
- */
-function generateMockArticle(client: Client, req: GenerateArticleRequest, usedKnowledgeIds: string[]): GenerationOutput {
-  const isMedical = req.promptType === 'medical';
-  const subKwText = req.subKeywords?.length ? `（関連: ${req.subKeywords.join('、')}）` : '';
+function generateMockArticle(client: Client, row: any, usedKnowledgeIds: string[]): GenerationOutput {
+  const isMedical = client.promptType === 'medical';
 
   let markdown = '';
   if (isMedical) {
-    markdown = `# ${req.keyword}の原因と治療法とは？${client.name}がわかりやすく解説
+    markdown = `# ${row.mainKeyword}の正しい理解と経過目安｜${client.name}
 
-「${req.keyword}」でお悩みではありませんか？${subKwText}に関する症状は、放置すると日常生活に支障をきたす場合があります。
-本記事では、症状の主な原因や治療の流れ、クリニック選びのポイントについて客観的な視点で詳しく解説します。
+## 冒頭サマリー（要約）
+**【結論】**: ${row.conclusion}
 
-## 1. ${req.keyword}の主な原因と症状の特徴
-${req.keyword}は、日頃の生活習慣や体質、加齢など多様な要因が重なることで生じます。
-- **初期症状**: 軽度の違和感や張り感
-- **進行時の症状**: 強い違和感や見た目の変化
+「${row.mainKeyword}」について検索される方の多くは、「施術後の経過に問題がないか」「いつから普段通りの生活に戻れるか」という不安を抱えています。
+本記事では、公的知見および院内方針に基づき、症状の経過や受診目安を客観的に解説します。
 
-症状には個人差があるため、自己判断せず早めに専門医へ相談することが大切です。
+## 1. この記事の結論
+- **一言で言うと**: ${row.conclusion}
+- **最も重要なこと**: 無理にいじらず、保湿と紫外線対策を徹底すること
+- **まず確認すべきこと**: 照射モードと医師から指示された注意事項
 
-## 2. 一般的な治療・改善アプローチ
-治療には保存的ケアから専門的な施術まで複数の選択肢が存在します。
-1. **カウンセリング・検査**: 症状の進行度や体質に応じた適応の確認
-2. **専門的アプローチ**: 医師の診断に基づく適切な施術・処方
+## 2. ${row.mainKeyword}のメカニズムと経過日数
+施術後は一時的に熱エネルギーによる反応が生じますが、数日〜1週間程度で徐々に落ち着きます。
 
-※治療効果には個人差があり、ダウンタイムや一時的な赤み・腫れなどのリスクを伴う場合があります。
+### 独自視点・注意点
+${row.uniquePoint || '個人差があるため、過度な刺激を避けることが肝要です。'}
 
-## 3. ${client.name}における診療方針
-当院（${client.name}）では、患者様一人ひとりのライフスタイルと不安に寄り添った丁寧なカウンセリングを大切にしています。
+## 3. 受診を検討すべき目安
+- 赤みや痛みが想定期間を超えて悪化する場合
+- 強い腫れや水疱が見られる場合
 
-- **安心の事前説明**: リスクや費用についても丁寧にご案内
-- **オーダーメイドな提案**: 症状に合わせた最適なケア
-
-[要確認: 自由診療の費用や詳細な治療メニューは診察時にご確認ください]
-
-## 4. よくある質問（Q&A）
-**Q. 治療期間はどのくらいかかりますか？**  
-A. 症状の度合いや選択する治療法によって異なります。初診時に目安をご案内いたします。
-
-**Q. 痛みや副作用はありますか？**  
-A. 施術内容により一時的な違和感が生じる場合がありますが、適切な対策を行っております。
+## 4. よくある質問（FAQ）
+**Q. 当日からメイクは可能ですか？**  
+A. 照射モードによって異なります。トーニング等の場合は当日から可能なケースが多いですが、診察時の指示に従ってください。
 
 ## 5. まとめ
-${req.keyword}についてお悩みの方は、我慢せずお気軽に${client.name}までご相談ください。
+${client.name}では、患者様の不安を解消するための丁寧なカウンセリングを実施しています。ご不安な点はお気軽にご相談ください。
 
 ---
-※本記事は一般的な医療・健康情報の提供を目的としており、特定の治療効果を保証するものではありません。症状がある場合は医師の診察をお受けください。
-
-【メタディスクリプション】
-${req.keyword}の原因や治療法について${client.name}が解説。症状の特徴からクリニックでの診療方針、注意点までわかりやすくまとめました。
-
-【推奨タグ】
-#${req.keyword} #${client.industry} #${client.name} #健康情報
+※本記事は一般的な医療情報の提供を目的とし、診断・治療の代替ではありません。症状が続く場合や判断に迷う場合は医師等の専門家へご相談ください。
 `;
   } else {
-    markdown = `# 【2025年最新】${req.keyword}の選び方と失敗しないポイントを徹底解説
+    markdown = `# ${row.mainKeyword}とは？失敗しない判断基準と職種の違いを徹底解説
 
-「${req.keyword}」を検討中の方に向けて、後悔しない選び方や確認すべき重要ポイントを詳しく解説します。${subKwText}
+## 冒頭サマリー（AI要約）
+**【結論】**: ${row.conclusion}
 
-## 1. なぜ今「${req.keyword}」が注目されているのか？
-現代のニーズに合わせ、${req.keyword}に関する選択肢は増えています。
-自分にぴったりのサービス・店舗を選ぶためには、以下の3つの基準を押さえておくことが重要です。
+「${row.mainKeyword}」に興味を持ったものの、「本当に自分にできるのか」「華やかなイメージだけで決めて後悔しないか」と迷っていませんか？
+転職や応募で大切なのは、勢いだけで決めず、仕事内容と自分の適性を客観的に整理して判断することです。
 
-- **ポイント1**: 実績と専門性の高さ
-- **ポイント2**: 明確な料金体系とサポート体制
-- **ポイント3**: 口コミ・利用者のリアルな評判
+## 1. なぜ「${row.mainKeyword}」で迷いが生じるのか？
+SNSマーケティングの仕事は、単にスマホで動画を投稿する作業ではありません。
+クライアントの採用課題や集客課題をヒアリングし、企画、撮影、編集、運用、分析改善まで多岐にわたる役割が存在します。
 
-## 2. ${client.name}ならではの強みとこだわり
-${client.name}では、お客様の満足度を最優先に考えたサービスを提供しております。
+### 本記事独自の重要視点
+${row.uniquePoint || '仕事内容を6つの判断軸で整理し、自分に合う役割を見極めることが重要です。'}
 
-- **確かな専門性**: 蓄積されたノウハウでお客様の課題を解決
-- **丁寧なヒアリング**: ご要望に合わせた柔軟な提案
+## 2. 職種ごとの役割分担
+1. **SNSディレクター**: 企画・進行・分析改善
+2. **採用ディレクター**: 企業の採用課題へのアプローチ
+3. **動画編集・制作**: 素材編集・テロップ設計
+4. **法人営業**: 企業へのヒアリング・提案
 
-[要確認: 詳しい料金プランやキャンペーン情報は公式窓口にお問い合わせください]
+## 3. ${client.name}における育成方針と実態
+${client.name}では、未経験からでも安心して挑戦できるよう、OJT研修や明確な業務フローを整備しています。
+スケジュール管理や丁寧なコミュニケーションを重視し、現実の業務内容をオープンに共有しています。
 
-## 3. よくある失敗例と対策
-- **安さだけで選んでしまう**: サポート範囲を事前に確認しましょう。
-- **事前に相談しない**: 不明点は事前の問い合わせで解消しておくことが成功の秘訣です。
+## 4. よくある質問（FAQ）
+**Q. 未経験でも応募可能ですか？**  
+A. 可能です。SNSへの興味に加え、既存の接客・事務・営業などで培った段取り力や質問力が大きな強みになります。
 
-## 4. まとめ＆お問い合わせ
-${req.keyword}をご検討中の方は、ぜひ${client.name}までお気軽にご相談ください。
-
----
-【メタディスクリプション】
-${req.keyword}の失敗しない選び方やポイントを${client.name}が徹底解説！後悔しないための重要チェックリストをご紹介します。
-
-【推奨タグ】
-#${req.keyword} #${client.name} #${client.industry}
+## 5. まとめ
+自分の強みが「つくる・進める・提案する」のどこにあるかを整理し、納得できる応募判断を行いましょう。
 `;
   }
 
   return {
-    title: `${req.keyword}に関するガイド - ${client.name}`,
+    title: `${row.mainKeyword}とは？失敗しない判断基準｜${client.name}`,
     contentMarkdown: markdown,
-    metaDescription: `${req.keyword}に関する重要ポイントを${client.name}が解説。`,
-    suggestedTags: [req.keyword, client.industry, client.name],
+    metaDescription: `${row.mainKeyword}について${client.name}が解説。${row.conclusion}`,
+    suggestedTags: [row.mainKeyword, client.industry, client.name],
     usedKnowledgeIds,
   };
 }
