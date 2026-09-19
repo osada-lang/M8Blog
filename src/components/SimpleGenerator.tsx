@@ -8,17 +8,12 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
-  Building2,
-  Plus,
   ExternalLink
 } from 'lucide-react';
 import { DraftEditor } from './DraftEditor';
 
 interface SimpleGeneratorProps {
-  clients: Client[];
-  selectedClient: Client;
-  onSelectClient: (client: Client) => void;
-  onOpenNewClientModal: () => void;
+  client: Client;
   sheetRows: KeywordSheetRow[];
   knowledges: KnowledgeItem[];
   prompts: PromptTemplate[];
@@ -27,10 +22,7 @@ interface SimpleGeneratorProps {
 }
 
 export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
-  clients,
-  selectedClient,
-  onSelectClient,
-  onOpenNewClientModal,
+  client,
   sheetRows,
   knowledges,
   prompts,
@@ -43,8 +35,8 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
 
   const selectedRow = sheetRows.find((r) => r.id === selectedRowId) || sheetRows[0];
-  const activePrompt = prompts.find((p) => p.type === selectedClient.promptType) || prompts[0];
-  const clientKnowledges = knowledges.filter((k) => k.clientId === selectedClient.id);
+  const activePrompt = prompts.find((p) => p.type === client.promptType) || prompts[0];
+  const clientKnowledges = knowledges.filter((k) => k.clientId === client.id);
 
   // 1記事生成
   const handleGenerate = async () => {
@@ -58,13 +50,13 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client: selectedClient,
+          client,
           knowledges: clientKnowledges,
           promptTemplate: activePrompt,
           generateRequest: {
-            clientId: selectedClient.id,
+            clientId: client.id,
             sheetRow: selectedRow,
-            promptType: selectedClient.promptType,
+            promptType: client.promptType,
             apiKey,
           },
         }),
@@ -75,10 +67,10 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
 
       const draft: BlogDraft = {
         id: `draft-${Date.now()}`,
-        clientId: selectedClient.id,
+        clientId: client.id,
         keyword: selectedRow.mainKeyword,
         subKeywords: [selectedRow.reachKeyword, selectedRow.suggestKeywords].filter(Boolean) as string[],
-        promptType: selectedClient.promptType,
+        promptType: client.promptType,
         title: json.data.title,
         contentMarkdown: json.data.contentMarkdown,
         metaDescription: json.data.metaDescription,
@@ -101,67 +93,36 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
     <div className="space-y-6 max-w-4xl mx-auto w-full">
       {/* 操作パネル */}
       <div className="apple-card p-5 sm:p-8 space-y-6">
-        <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">
             ブログ記事を生成する
           </h2>
-        </div>
 
-        {/* 店舗選択プルダウン ＆ 文献・KWリンク（キーワード選択の上） */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-3.5 bg-[#f5f5f7] rounded-2xl border border-[#e5e5ea]">
-          {/* 店舗選択 */}
-          <div className="relative flex items-center bg-white border border-[#d2d2d7] rounded-xl px-3 py-1.5 text-xs">
-            <Building2 className="w-3.5 h-3.5 text-[#86868b] mr-1.5 shrink-0" />
-            <select
-              className="bg-transparent text-xs text-[#1d1d1f] font-semibold focus:outline-none cursor-pointer pr-4 appearance-none"
-              value={selectedClient?.id || ''}
-              onChange={(e) => {
-                const found = clients.find((c) => c.id === e.target.value);
-                if (found) onSelectClient(found);
-              }}
-            >
-              {clients.map((c) => (
-                <option key={c.id} value={c.id} className="bg-white text-[#1d1d1f]">
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-3 h-3 text-[#86868b] absolute right-2.5 pointer-events-none" />
-
-            <button
-              onClick={onOpenNewClientModal}
-              title="新規クライアントを追加"
-              className="ml-1.5 pl-1.5 border-l border-[#d2d2d7] text-[#86868b] hover:text-[#0066cc] transition"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+          {/* 📄 文献 ＆ 📊 KW リンク */}
+          <div className="flex items-center space-x-2">
+            {client?.documentUrl && (
+              <a
+                href={client.documentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="apple-secondary-btn flex items-center space-x-1 px-3 py-1.5 text-xs font-medium"
+              >
+                <span>📄 文献</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            )}
+            {client?.spreadsheetUrl && (
+              <a
+                href={client.spreadsheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="apple-secondary-btn flex items-center space-x-1 px-3 py-1.5 text-xs font-medium"
+              >
+                <span>📊 KW</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            )}
           </div>
-
-          {/* 📄 文献リンク */}
-          {selectedClient?.documentUrl && (
-            <a
-              href={selectedClient.documentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="apple-secondary-btn flex items-center space-x-1 px-3 py-1.5 text-xs font-medium"
-            >
-              <span>📄 文献</span>
-              <ExternalLink className="w-2.5 h-2.5" />
-            </a>
-          )}
-
-          {/* 📊 KWリンク */}
-          {selectedClient?.spreadsheetUrl && (
-            <a
-              href={selectedClient.spreadsheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="apple-secondary-btn flex items-center space-x-1 px-3 py-1.5 text-xs font-medium"
-            >
-              <span>📊 KW</span>
-              <ExternalLink className="w-2.5 h-2.5" />
-            </a>
-          )}
         </div>
 
         {sheetRows.length === 0 ? (

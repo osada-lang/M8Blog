@@ -65,16 +65,18 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex flex-col font-sans">
-      {/* Apple Frosted ヘッダー（ロゴのみのミニマル仕様） */}
-      <Header />
+      {/* Apple Frosted ヘッダー（店舗選択プルダウン付き） */}
+      <Header
+        clients={clients}
+        selectedClient={selectedClient}
+        onSelectClient={handleSelectClient}
+        onOpenNewClientModal={() => setIsClientModalOpen(true)}
+      />
 
-      {/* メインコンテンツ（完全1画面） */}
+      {/* メインコンテンツ */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
         <SimpleGenerator
-          clients={clients}
-          selectedClient={selectedClient}
-          onSelectClient={handleSelectClient}
-          onOpenNewClientModal={() => setIsClientModalOpen(true)}
+          client={selectedClient}
           sheetRows={sheetRows}
           knowledges={knowledges}
           prompts={prompts}
