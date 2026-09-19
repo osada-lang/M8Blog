@@ -27,34 +27,29 @@ export const INITIAL_CLIENTS: Client[] = [
   },
 ];
 
-// 初期文献要約集（セニスル実データ）
+// 初期参考資料（1つに統合した文献要約集）
 export const INITIAL_KNOWLEDGES: KnowledgeItem[] = [
   {
-    id: 'know-senisuru-1',
+    id: 'know-senisuru-main',
     clientId: 'client-senisuru',
-    title: '文献要約: 業界歴史とSNS採用の背景（職業安定法〜スマホ普及）',
+    title: '株式会社セニスル 文献要約集（業界歴史・法制度・職種と働き方の実態）',
     sourceType: 'text',
-    content: `【業界歴史・法制度・背景の要約】
-1. 職業安定法（1947年）: 求職者に正しい労働情報を伝える原則。誇大広告や誤認表示の禁止。SNS採用でも「楽しい印象」だけでなく現実の業務内容を伝えることが重要。
-2. 就職情報誌〜インターネット求人（1960〜2000年代）: 単なる求人告知から「複数企業を比較する市場」へ変化。
-3. スマートフォン普及（2010年代〜）: 世帯保有率90%超。求職者は日常的にSNS（TikTok, Instagram, YouTube）で企業の実態や口コミを比較・検索して判断するようになった。`,
-    tags: ['業界歴史', '職業安定法', 'SNS採用市場'],
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'know-senisuru-2',
-    clientId: 'client-senisuru',
-    title: '文献要約: セニスルの職種・仕事内容・働き方の実態',
-    sourceType: 'text',
-    content: `【株式会社セニスル 組織・職種・働き方ファクト】
-1. 主な職種:
-   - SNSディレクター: 企画、台本作成、撮影進行、投稿管理、分析改善
-   - 採用ディレクター: 企業の採用課題ヒアリング、採用ブランディング設計
-   - 動画編集: 撮影素材の編集、テロップ、テンポ設計
-   - 法人営業: 企業へのSNS活用提案、ヒアリング
-2. 求められる姿勢: 単なるSNS好きだけでなく、スケジュール管理、丁寧な顧客折衝、仮説検証の姿勢。
-3. 勤務形態: 名古屋拠点。実残業の抑制、OJT研修制度、数値に基づく明確な評価体系。`,
-    tags: ['セニスル会社情報', '職種一覧', '研修・働き方'],
+    content: `【1. 業界の歴史・法制度・背景の要約】
+・職業安定法（1947年）: 求職者に正しい労働情報を伝える原則。虚偽表示や誤解を招く誇大表示を禁止。SNS採用でも「楽しい印象」だけでなく現実のスケジュール管理や顧客対応などの事実を伝えることが最重要。
+・求人市場の変遷（1960〜2000年代）: 単なる求人告知から、就職情報誌やネット求人による「複数企業を比較する市場」へ変化。自社で働く意味や判断基準の提示が求められる。
+・スマートフォンとSNSの普及（2010年代〜）: 世帯保有率90%超。求職者は日常的にTikTok、Instagram、YouTube、口コミで企業の実態を横断検索して応募判断する時代になった。
+
+【2. 株式会社セニスル 組織・職種・働き方の実態ファクト】
+・主な職種と役割分担:
+  1. SNSディレクター: 企画、台本作成、撮影進行、投稿管理、データ分析、改善提案まで担う進行管理職
+  2. 採用ディレクター: 企業の採用課題ヒアリング、採用ブランディング・母集団形成設計
+  3. 動画編集: 撮影素材のカット、テロップ挿入、テンポ設計に特化する制作職
+  4. 法人営業: 企業へのSNS活用提案、課題ヒアリング
+・求められる適性・姿勢:
+  単なるSNS好きだけでなく、段取り力、丁寧なコミュニケーション、質問力、仮説検証の姿勢。接客や営業経験も大きな強みになる。
+・働き方・育成体制:
+  名古屋拠点。実残業の抑制、OJT研修制度、評価制度の明文化。企画・分析等のリモート対応と対面撮影・顧客対応のバランスを重視。`,
+    tags: ['セニスル文献要約集', '業界歴史', '職種ファクト'],
     createdAt: new Date().toISOString(),
   },
 ];
@@ -146,11 +141,11 @@ export const INITIAL_SHEET_ROWS: Record<string, KeywordSheetRow[]> = {
 };
 
 const STORAGE_KEYS = {
-  CLIENTS: 'm8blog_clients_v4',
-  KNOWLEDGES: 'm8blog_knowledges_v4',
-  PROMPTS: 'm8blog_prompts_v4',
-  SHEET_ROWS: 'm8blog_sheet_rows_v4',
-  API_KEY: 'm8blog_anthropic_api_key_v4',
+  CLIENTS: 'm8blog_clients_v5',
+  KNOWLEDGES: 'm8blog_knowledges_v5',
+  PROMPTS: 'm8blog_prompts_v5',
+  SHEET_ROWS: 'm8blog_sheet_rows_v5',
+  API_KEY: 'm8blog_anthropic_api_key_v5',
 };
 
 export const clientStore = {

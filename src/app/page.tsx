@@ -87,7 +87,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex flex-col font-sans">
-      {/* Apple Frosted ヘッダー（シンプル化） */}
+      {/* Apple Frosted ヘッダー */}
       <Header
         clients={clients}
         selectedClient={selectedClient}
@@ -120,7 +120,7 @@ export default function Home() {
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>文献要約集 ({knowledges.filter((k) => k.clientId === selectedClient.id).length})</span>
+              <span>参考資料 ({knowledges.filter((k) => k.clientId === selectedClient.id).length})</span>
             </button>
           </div>
 
