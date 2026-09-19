@@ -65,7 +65,7 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
         id: `draft-${Date.now()}`,
         clientId: client.id,
         keyword: selectedRow.mainKeyword,
-        subKeywords: [selectedRow.reachKeyword].filter(Boolean) as string[],
+        subKeywords: [selectedRow.reachKeyword, selectedRow.suggestKeywords].filter(Boolean) as string[],
         promptType: client.promptType,
         title: json.data.title,
         contentMarkdown: json.data.contentMarkdown,
@@ -87,24 +87,21 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* 操作パネル（超スッキリ・リンクなし） */}
+      {/* 操作パネル */}
       <div className="apple-card p-6 sm:p-8 space-y-6">
         <div>
-          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#1d1d1f] text-white">
-            孫記事専用
-          </span>
-          <h2 className="text-xl font-semibold text-[#1d1d1f] tracking-tight mt-1.5">
+          <h2 className="text-xl font-semibold text-[#1d1d1f] tracking-tight">
             ブログ記事を生成する
           </h2>
         </div>
 
         {sheetRows.length === 0 ? (
           <div className="p-8 text-center text-[#86868b]">
-            <p className="text-xs">対象の孫記事キーワードがありません。</p>
+            <p className="text-xs">対象のキーワードがありません。</p>
           </div>
         ) : (
           <div className="space-y-5">
-            {/* キーワード名プルダウン選択（Day表記なし） */}
+            {/* キーワード名プルダウン選択 */}
             <div>
               <label className="text-xs font-semibold text-[#1d1d1f] block mb-1.5">
                 執筆するキーワードを選択
@@ -125,34 +122,57 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
               </div>
             </div>
 
-            {/* 選択されたキーワードの設計プレビュー（縦並び・大型化・スクロール対応） */}
+            {/* 選択されたキーワードの設計プレビュー（5項目縦並び・スクロール対応） */}
             {selectedRow && (
-              <div className="p-5 bg-[#f5f5f7] rounded-2xl border border-[#e5e5ea] space-y-4 max-h-80 overflow-y-auto">
+              <div className="p-5 bg-[#f5f5f7] rounded-2xl border border-[#e5e5ea] space-y-3.5 max-h-80 overflow-y-auto">
+                {/* 1. 想定読者 */}
                 <div>
                   <span className="text-xs font-bold text-[#1d1d1f] block mb-1">
-                    👤 想定読者（ペルソナ）
+                    想定読者
                   </span>
                   <p className="text-xs text-[#515154] leading-relaxed bg-white p-3 rounded-xl border border-[#e5e5ea]">
-                    {selectedRow.targetAudience}
+                    {selectedRow.targetAudience || '未設定'}
                   </p>
                 </div>
 
+                {/* 2. 検索意図 */}
                 <div>
                   <span className="text-xs font-bold text-[#1d1d1f] block mb-1">
-                    💡 記事の結論
+                    検索意図
                   </span>
                   <p className="text-xs text-[#515154] leading-relaxed bg-white p-3 rounded-xl border border-[#e5e5ea]">
-                    {selectedRow.conclusion}
+                    {selectedRow.searchIntent || '未設定'}
                   </p>
                 </div>
 
-                {selectedRow.uniquePoint && (
+                {/* 3. 記事の結論（冒頭AIサマリー用） */}
+                <div>
+                  <span className="text-xs font-bold text-[#1d1d1f] block mb-1">
+                    記事の結論（冒頭AIサマリー用）
+                  </span>
+                  <p className="text-xs text-[#515154] leading-relaxed bg-white p-3 rounded-xl border border-[#e5e5ea]">
+                    {selectedRow.conclusion || '未設定'}
+                  </p>
+                </div>
+
+                {/* 4. 重複チェック用1文（この記事でしか言わない事） */}
+                <div>
+                  <span className="text-xs font-bold text-[#0066cc] block mb-1">
+                    重複チェック用1文（この記事でしか言わない事）
+                  </span>
+                  <p className="text-xs text-[#0066cc] leading-relaxed bg-blue-50/60 p-3 rounded-xl border border-blue-100 font-medium">
+                    {selectedRow.uniquePoint || '未設定'}
+                  </p>
+                </div>
+
+                {/* 5. AIサジェストKW */}
+                {selectedRow.suggestKeywords && (
                   <div>
-                    <span className="text-xs font-bold text-[#0066cc] block mb-1">
-                      ✨ 差別化の軸（重複チェック用）
+                    <span className="text-xs font-bold text-[#1d1d1f] block mb-1">
+                      AIサジェストKW
                     </span>
-                    <p className="text-xs text-[#0066cc] leading-relaxed bg-blue-50/60 p-3 rounded-xl border border-blue-100">
-                      {selectedRow.uniquePoint}
+                    <p className="text-xs text-[#515154] leading-relaxed bg-white p-3 rounded-xl border border-[#e5e5ea]">
+                      {selectedRow.suggestKeywords}
                     </p>
                   </div>
                 )}

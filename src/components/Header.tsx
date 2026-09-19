@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Client } from '@/types';
-import { Building2, Sparkles, Plus, ChevronDown } from 'lucide-react';
+import { Building2, Sparkles, Plus, ChevronDown, ExternalLink } from 'lucide-react';
 
 interface HeaderProps {
   clients: Client[];
@@ -30,32 +30,61 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        {/* クライアント選択ドロップダウン */}
-        <div className="relative flex items-center bg-[#f5f5f7] border border-[#e5e5ea] rounded-full px-3 py-1.5 text-xs">
-          <Building2 className="w-3.5 h-3.5 text-[#86868b] mr-1.5" />
-          <select
-            className="bg-transparent text-xs text-[#1d1d1f] font-medium focus:outline-none cursor-pointer pr-4 appearance-none"
-            value={selectedClient?.id || ''}
-            onChange={(e) => {
-              const found = clients.find((c) => c.id === e.target.value);
-              if (found) onSelectClient(found);
-            }}
-          >
-            {clients.map((c) => (
-              <option key={c.id} value={c.id} className="bg-white text-[#1d1d1f]">
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="w-3 h-3 text-[#86868b] absolute right-2.5 pointer-events-none" />
+        {/* クライアント選択 ＆ 文献・KWリンク */}
+        <div className="flex items-center space-x-2">
+          {/* クライアント選択ドロップダウン */}
+          <div className="relative flex items-center bg-[#f5f5f7] border border-[#e5e5ea] rounded-full px-3 py-1.5 text-xs">
+            <Building2 className="w-3.5 h-3.5 text-[#86868b] mr-1.5" />
+            <select
+              className="bg-transparent text-xs text-[#1d1d1f] font-medium focus:outline-none cursor-pointer pr-4 appearance-none"
+              value={selectedClient?.id || ''}
+              onChange={(e) => {
+                const found = clients.find((c) => c.id === e.target.value);
+                if (found) onSelectClient(found);
+              }}
+            >
+              {clients.map((c) => (
+                <option key={c.id} value={c.id} className="bg-white text-[#1d1d1f]">
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3 h-3 text-[#86868b] absolute right-2.5 pointer-events-none" />
 
-          <button
-            onClick={onOpenNewClientModal}
-            title="新規クライアントを追加"
-            className="ml-1.5 pl-1.5 border-l border-[#d2d2d7] text-[#86868b] hover:text-[#0066cc] transition"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
+            <button
+              onClick={onOpenNewClientModal}
+              title="新規クライアントを追加"
+              className="ml-1.5 pl-1.5 border-l border-[#d2d2d7] text-[#86868b] hover:text-[#0066cc] transition"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* 📄 文献リンク */}
+          {selectedClient?.documentUrl && (
+            <a
+              href={selectedClient.documentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="apple-secondary-btn flex items-center space-x-1 px-3 py-1.5 text-xs font-medium"
+            >
+              <span>📄 文献</span>
+              <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          )}
+
+          {/* 📊 KWリンク */}
+          {selectedClient?.spreadsheetUrl && (
+            <a
+              href={selectedClient.spreadsheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="apple-secondary-btn flex items-center space-x-1 px-3 py-1.5 text-xs font-medium"
+            >
+              <span>📊 KW</span>
+              <ExternalLink className="w-2.5 h-2.5" />
+            </a>
+          )}
         </div>
       </div>
     </header>
