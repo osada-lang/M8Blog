@@ -138,8 +138,13 @@ ${content.slice(0, 5000)}
 ]`;
 
   const candidateModels = [
+    'claude-sonnet-5-latest',
+    'claude-5-sonnet-latest',
+    'claude-5-sonnet',
+    'claude-haiku-4-5-latest',
+    'claude-4-5-haiku-latest',
+    'claude-3-7-sonnet-latest',
     'claude-3-5-sonnet-latest',
-    'claude-3-5-sonnet-20240620',
     'claude-3-haiku-20240307',
   ];
 

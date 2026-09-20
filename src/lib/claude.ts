@@ -10,11 +10,23 @@ export interface GenerationOutput {
   usedKnowledgeIds: string[];
 }
 
-// 利用可能なモデル候補（新しい順・互換性順）
+// ダッシュボードに表示されている最新世代モデルを最優先に指定
 const CANDIDATE_MODELS = [
-  'claude-3-5-sonnet-latest',
-  'claude-3-5-sonnet-20240620',
+  'claude-sonnet-5-latest',
+  'claude-5-sonnet-latest',
+  'claude-5-sonnet',
+  'claude-sonnet-5',
+  'claude-haiku-4-5-latest',
+  'claude-4-5-haiku-latest',
+  'claude-haiku-4-5',
+  'claude-4-5-haiku',
+  'claude-5-opus-latest',
+  'claude-5-opus',
   'claude-3-7-sonnet-latest',
+  'claude-3-7-sonnet-20250219',
+  'claude-3-5-sonnet-latest',
+  'claude-3-5-sonnet-20241022',
+  'claude-3-5-sonnet-20240620',
   'claude-3-haiku-20240307',
 ];
 
