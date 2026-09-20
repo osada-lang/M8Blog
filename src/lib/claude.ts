@@ -10,25 +10,65 @@ export interface GenerationOutput {
   usedKnowledgeIds: string[];
 }
 
-// ダッシュボードに表示されている最新世代モデルを最優先に指定
-const CANDIDATE_MODELS = [
-  'claude-sonnet-5-latest',
-  'claude-5-sonnet-latest',
-  'claude-5-sonnet',
-  'claude-sonnet-5',
-  'claude-haiku-4-5-latest',
-  'claude-4-5-haiku-latest',
-  'claude-haiku-4-5',
-  'claude-4-5-haiku',
-  'claude-5-opus-latest',
-  'claude-5-opus',
-  'claude-3-7-sonnet-latest',
-  'claude-3-7-sonnet-20250219',
-  'claude-3-5-sonnet-latest',
-  'claude-3-5-sonnet-20241022',
-  'claude-3-5-sonnet-20240620',
-  'claude-3-haiku-20240307',
-];
+/**
+ * APIキーで利用可能なモデル一覧を取得し、最適なモデルを選択する
+ */
+export async function resolveBestModel(apiKey: string): Promise<string> {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/models', {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      next: { revalidate: 3600 },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const availableModels: string[] = (data.data || []).map((m: any) => m.id);
+
+      // 優先度順で最初に見つかった利用可能モデルを返す
+      const preferred = [
+        'claude-sonnet-5',
+        'claude-5-sonnet',
+        'claude-sonnet-5-latest',
+        'claude-opus-5',
+        'claude-5-opus',
+        'claude-haiku-4-5',
+        'claude-4-5-haiku',
+        'claude-3-7-sonnet-latest',
+        'claude-3-7-sonnet-20250219',
+        'claude-3-5-sonnet-latest',
+        'claude-3-5-sonnet-20241022',
+        'claude-3-5-sonnet-20240620',
+        'claude-3-haiku-20240307',
+      ];
+
+      for (const pref of preferred) {
+        if (availableModels.includes(pref)) {
+          return pref;
+        }
+      }
+
+      // 優先リストに完全一致がない場合、Sonnet > Opus > Haiku の部分一致で選択
+      const sonnetModel = availableModels.find((m) => m.includes('sonnet'));
+      if (sonnetModel) return sonnetModel;
+
+      const opusModel = availableModels.find((m) => m.includes('opus'));
+      if (opusModel) return opusModel;
+
+      const anyClaude = availableModels.find((m) => m.includes('claude'));
+      if (anyClaude) return anyClaude;
+
+      if (availableModels.length > 0) return availableModels[0];
+    }
+  } catch (err) {
+    console.warn('Failed to dynamically fetch available models:', err);
+  }
+
+  // フォールバック
+  return 'claude-sonnet-5';
+}
 
 export async function generateArticleWithClaude(
   client: Client,
@@ -66,13 +106,24 @@ export async function generateArticleWithClaude(
     return generateMockArticle(client, row, ragResult.usedKnowledgeIds);
   }
 
+  // 利用可能な最適モデルを自動解決
+  const selectedModel = await resolveBestModel(apiKey);
   const anthropic = new Anthropic({ apiKey });
+
+  const candidateModels = [
+    selectedModel,
+    'claude-sonnet-5',
+    'claude-opus-5',
+    'claude-haiku-4-5',
+    'claude-3-7-sonnet-latest',
+    'claude-3-5-sonnet-latest',
+    'claude-3-haiku-20240307',
+  ];
 
   let fullText = '';
   let lastError: any = null;
 
-  // 候補モデルを順に試行
-  for (const model of CANDIDATE_MODELS) {
+  for (const model of Array.from(new Set(candidateModels))) {
     try {
       const response = await anthropic.messages.create({
         model,
@@ -93,15 +144,14 @@ export async function generateArticleWithClaude(
         .join('\n');
 
       if (fullText) {
-        break; // 成功したらループ終了
+        break;
       }
     } catch (err: any) {
       lastError = err;
-      // 404 not_found_error なら次のモデルへフォールバック
       if (err?.status === 404 || err?.message?.includes('not_found_error') || err?.message?.includes('model')) {
         continue;
       }
-      throw err; // 認証エラーやレートリミット等の場合は即座にスロー
+      throw err;
     }
   }
 

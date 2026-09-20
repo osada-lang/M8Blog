@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { FactCheckIssue, FactCheckResult, KnowledgeItem, PromptType } from '@/types';
+import { resolveBestModel } from './claude';
 
 // 薬機法・医療広告ガイドラインで問題視されやすいNGパターン一覧
 const MEDICAL_LAW_RISK_PATTERNS = [
@@ -114,6 +115,7 @@ async function runLlmFactCheck(
   promptType: PromptType,
   apiKey: string
 ): Promise<FactCheckIssue[]> {
+  const selectedModel = await resolveBestModel(apiKey);
   const anthropic = new Anthropic({ apiKey });
 
   const prompt = `以下の【元資料（文献要約集）】と【生成されたブログ記事】を照合し、ハルシネーション（元資料に根拠がない架空の創作・数値捏造）や、医療系リスク（誇大広告、薬機法違反リスク）をチェックしてください。
@@ -138,18 +140,17 @@ ${content.slice(0, 5000)}
 ]`;
 
   const candidateModels = [
-    'claude-sonnet-5-latest',
-    'claude-5-sonnet-latest',
-    'claude-5-sonnet',
-    'claude-haiku-4-5-latest',
-    'claude-4-5-haiku-latest',
+    selectedModel,
+    'claude-sonnet-5',
+    'claude-opus-5',
+    'claude-haiku-4-5',
     'claude-3-7-sonnet-latest',
     'claude-3-5-sonnet-latest',
     'claude-3-haiku-20240307',
   ];
 
   let text = '';
-  for (const model of candidateModels) {
+  for (const model of Array.from(new Set(candidateModels))) {
     try {
       const response = await anthropic.messages.create({
         model,
