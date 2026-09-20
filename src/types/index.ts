@@ -36,12 +36,13 @@ export interface PromptTemplate {
   updatedAt: string;
 }
 
-// 孫記事の行データ
+// キーワード行データ
 export interface KeywordSheetRow {
   id: string;
   day?: string;
-  role: string; // '孫'
+  role: string; // '親' | '準親' | '孫'
   category?: string;
+  kwType?: 'main' | 'reach'; // メインキーワード か リーチキーワード（孫）か
   mainKeyword: string;
   reachKeyword?: string;
   searchIntent: string;
@@ -49,6 +50,16 @@ export interface KeywordSheetRow {
   conclusion: string;
   uniquePoint?: string;
   suggestKeywords?: string;
+}
+
+// 過去に生成したキーワードの履歴（軽量記録）
+export interface KeywordHistoryItem {
+  id: string;
+  clientId: string;
+  keyword: string;
+  day?: string;
+  kwType?: 'main' | 'reach';
+  generatedAt: string;
 }
 
 export interface FactCheckIssue {

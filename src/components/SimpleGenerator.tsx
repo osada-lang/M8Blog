@@ -1,16 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
-import { BlogDraft, Client, KeywordSheetRow, KnowledgeItem, PromptTemplate } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { BlogDraft, Client, KeywordHistoryItem, KeywordSheetRow, KnowledgeItem, PromptTemplate } from '@/types';
+import { clientStore } from '@/lib/store';
 import { 
   Sparkles, 
   Loader2, 
   ChevronDown,
   ChevronUp,
   Info,
-  ExternalLink
+  ExternalLink,
+  History,
+  CheckCircle2
 } from 'lucide-react';
 import { DraftEditor } from './DraftEditor';
+import { HistoryModal } from './HistoryModal';
 
 interface SimpleGeneratorProps {
   client: Client;
@@ -28,13 +32,36 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
   prompts,
   apiKey,
 }) => {
-  const [selectedRowId, setSelectedRowId] = useState<string>(sheetRows[0]?.id || '');
+  // キーワード種別: 'reach' (デフォルト・孫) または 'main' (メイン)
+  const [activeKwType, setActiveKwType] = useState<'reach' | 'main'>('reach');
+  const [selectedRowId, setSelectedRowId] = useState<string>('');
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyItems, setHistoryItems] = useState<KeywordHistoryItem[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentDraft, setCurrentDraft] = useState<BlogDraft | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const selectedRow = sheetRows.find((r) => r.id === selectedRowId) || sheetRows[0];
+  // 履歴のロード
+  useEffect(() => {
+    setHistoryItems(clientStore.getHistory(client.id));
+  }, [client.id]);
+
+  // 種別（reach / main）でフィルタリング
+  const filteredRows = sheetRows.filter((r) => (r.kwType || 'reach') === activeKwType);
+  const mainCount = sheetRows.filter((r) => r.kwType === 'main').length;
+  const reachCount = sheetRows.filter((r) => (r.kwType || 'reach') === 'reach').length;
+
+  // 選択中の行
+  const selectedRow = filteredRows.find((r) => r.id === selectedRowId) || filteredRows[0];
+
+  // 種別切り替え時に選択を先頭にリセット
+  useEffect(() => {
+    if (filteredRows.length > 0 && (!selectedRowId || !filteredRows.some((r) => r.id === selectedRowId))) {
+      setSelectedRowId(filteredRows[0].id);
+    }
+  }, [activeKwType, sheetRows]);
+
   const activePrompt = prompts.find((p) => p.type === client.promptType) || prompts[0];
   const clientKnowledges = knowledges.filter((k) => k.clientId === client.id);
 
@@ -81,6 +108,18 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
         updatedAt: new Date().toISOString(),
       };
 
+      // 履歴に保存
+      const historyItem: KeywordHistoryItem = {
+        id: `hist-${Date.now()}`,
+        clientId: client.id,
+        keyword: selectedRow.mainKeyword,
+        day: selectedRow.day,
+        kwType: selectedRow.kwType || activeKwType,
+        generatedAt: new Date().toISOString(),
+      };
+      clientStore.addHistoryItem(historyItem);
+      setHistoryItems(clientStore.getHistory(client.id));
+
       setCurrentDraft(draft);
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -93,13 +132,24 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
     <div className="space-y-6 max-w-4xl mx-auto w-full">
       {/* 操作パネル */}
       <div className="apple-card p-5 sm:p-8 space-y-6">
+        {/* 見出し ＆ 右側ボタン群（履歴・文献・KW） */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">
             ブログ記事を生成する
           </h2>
 
-          {/* 📄 文献 ＆ 📊 KW リンク */}
-          <div className="flex items-center space-x-2">
+          {/* 右側アクションボタン（履歴・文献・KW） */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {/* 🕒 履歴ボタン */}
+            <button
+              onClick={() => setIsHistoryOpen(true)}
+              className="apple-secondary-btn flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium"
+            >
+              <History className="w-3.5 h-3.5 text-[#0066cc]" />
+              <span>履歴 ({historyItems.length})</span>
+            </button>
+
+            {/* 📄 文献リンク */}
             {client?.documentUrl && (
               <a
                 href={client.documentUrl}
@@ -111,6 +161,8 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
                 <ExternalLink className="w-2.5 h-2.5" />
               </a>
             )}
+
+            {/* 📊 KWリンク */}
             {client?.spreadsheetUrl && (
               <a
                 href={client.spreadsheetUrl}
@@ -125,13 +177,45 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
           </div>
         </div>
 
-        {sheetRows.length === 0 ? (
-          <div className="p-8 text-center text-[#86868b]">
-            <p className="text-xs">対象のキーワードがありません。</p>
+        {/* キーワード種別切り替え（セグメントコントロール） */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-[#86868b] block">
+            キーワード種別
+          </label>
+          <div className="inline-flex p-1 bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setActiveKwType('reach')}
+              className={`px-3.5 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+                activeKwType === 'reach'
+                  ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
+              }`}
+            >
+              <span>🔗 リーチキーワード ({reachCount})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveKwType('main')}
+              className={`px-3.5 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+                activeKwType === 'main'
+                  ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
+              }`}
+            >
+              <span>🎯 メインキーワード ({mainCount})</span>
+            </button>
+          </div>
+        </div>
+
+        {filteredRows.length === 0 ? (
+          <div className="p-8 text-center text-[#86868b] bg-[#f5f5f7] rounded-xl border border-[#e5e5ea]">
+            <p className="text-xs">選択中の種別のキーワードがありません。</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* キーワード名プルダウン選択 */}
+            {/* キーワード名プルダウン選択（Day表記付き） */}
             <div>
               <label className="text-xs font-semibold text-[#1d1d1f] block mb-1.5">
                 執筆するキーワードを選択
@@ -142,9 +226,9 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
                   value={selectedRow?.id || ''}
                   onChange={(e) => setSelectedRowId(e.target.value)}
                 >
-                  {sheetRows.map((row) => (
+                  {filteredRows.map((row) => (
                     <option key={row.id} value={row.id}>
-                      {row.mainKeyword}
+                      {row.day ? `Day ${row.day}: ` : ''}{row.mainKeyword}
                     </option>
                   ))}
                 </select>
@@ -272,6 +356,20 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
           />
         </div>
       )}
+
+      {/* 履歴モーダル */}
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        historyItems={historyItems}
+        onSelectKeyword={(kw) => {
+          const found = sheetRows.find((r) => r.mainKeyword === kw);
+          if (found) {
+            setActiveKwType(found.kwType || 'reach');
+            setSelectedRowId(found.id);
+          }
+        }}
+      />
     </div>
   );
 };
