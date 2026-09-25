@@ -6,8 +6,9 @@ export interface Client {
   industry: string;
   promptType: PromptType;
   description?: string;
-  spreadsheetUrl?: string; // KWスプレッドシートへのリンク
-  documentUrl?: string; // 文献要約集ドキュメントへのリンク
+  spreadsheetUrl?: string; // 📊 KWスプレッドシート
+  documentUrl?: string;    // 📄 文献要約集ドキュメント
+  hearingSheetUrl?: string;// 📝 ヒアリングシートドキュメント
   createdAt: string;
   updatedAt: string;
 }

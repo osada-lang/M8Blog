@@ -10,8 +10,7 @@ import {
   ChevronUp,
   Info,
   ExternalLink,
-  History,
-  CheckCircle2
+  History
 } from 'lucide-react';
 import { DraftEditor } from './DraftEditor';
 import { HistoryModal } from './HistoryModal';
@@ -132,13 +131,13 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
     <div className="space-y-6 max-w-4xl mx-auto w-full">
       {/* 操作パネル */}
       <div className="apple-card p-5 sm:p-8 space-y-6">
-        {/* 見出し ＆ 右側ボタン群（履歴・文献・KW） */}
+        {/* 見出し ＆ 右側ボタン群（履歴・ヒア・文献・KW） */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">
             ブログ記事を生成する
           </h2>
 
-          {/* 右側アクションボタン（履歴・文献・KW） */}
+          {/* 右側アクションボタン（履歴 ➔ 📝 ヒア ➔ 📄 文献 ➔ 📊 KW） */}
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {/* 🕒 履歴ボタン */}
             <button
@@ -148,6 +147,19 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
               <History className="w-3.5 h-3.5 text-[#0066cc]" />
               <span>履歴 ({historyItems.length})</span>
             </button>
+
+            {/* 📝 ヒアリンク */}
+            {client?.hearingSheetUrl && (
+              <a
+                href={client.hearingSheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="apple-secondary-btn flex items-center space-x-1 px-3 py-1.5 text-xs font-medium"
+              >
+                <span>📝 ヒア</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            )}
 
             {/* 📄 文献リンク */}
             {client?.documentUrl && (
