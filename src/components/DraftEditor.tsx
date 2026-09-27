@@ -67,6 +67,9 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
   let tableHeader: string[] = [];
   let tableRows: string[][] = [];
 
+  let inBlockquote = false;
+  let blockquoteLines: string[] = [];
+
   const flushTable = (key: string) => {
     if (tableHeader.length > 0 || tableRows.length > 0) {
       renderedElements.push(
@@ -103,13 +106,73 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     }
   };
 
+  const flushBlockquote = (key: string) => {
+    if (blockquoteLines.length > 0) {
+      const fullText = blockquoteLines.join('\n');
+      const isCtaBox = fullText.includes('この記事のテーマを') || fullText.includes('整理したい方へ') || fullText.includes('無料相談') || fullText.includes('関連ガイド');
+
+      if (isCtaBox) {
+        // 実物のWebサイトと全く同じCTAカードボックス風の装飾
+        renderedElements.push(
+          <div key={key} className="my-6 p-5 sm:p-6 rounded-2xl border-2 border-[#c5a880]/60 bg-[#faf8f5] space-y-3.5 shadow-sm text-xs sm:text-sm">
+            {blockquoteLines.map((bLine, bIdx) => {
+              const bTrimmed = bLine.trim();
+              if (!bTrimmed) return null;
+
+              // ボタン型リンク (▶ [関連ガイド...] 等)
+              if (bTrimmed.startsWith('▶') || bTrimmed.includes('関連ガイド') || bTrimmed.includes('想い')) {
+                return (
+                  <div key={bIdx} className="p-2.5 sm:p-3 bg-white border border-[#c5a880]/50 rounded-xl text-xs sm:text-sm text-[#1d1d1f] font-semibold hover:border-[#0066cc] transition">
+                    <span dangerouslySetInnerHTML={{ __html: formatInline(bTrimmed) }} />
+                  </div>
+                );
+              }
+
+              // 見出しタイトル (この記事のテーマを...)
+              if (bTrimmed.includes('この記事のテーマを') || bTrimmed.includes('整理したい方へ')) {
+                return (
+                  <p key={bIdx} className="font-bold text-[#1d1d1f] text-sm sm:text-base tracking-tight" dangerouslySetInnerHTML={{ __html: formatInline(bTrimmed) }} />
+                );
+              }
+
+              return (
+                <p key={bIdx} className="text-[#515154] leading-relaxed" dangerouslySetInnerHTML={{ __html: formatInline(bTrimmed) }} />
+              );
+            })}
+          </div>
+        );
+      } else {
+        // 通常の引用ブロック
+        renderedElements.push(
+          <blockquote key={key} className="my-4 p-4 rounded-xl bg-[#f5f5f7] border-l-4 border-[#86868b] text-[#515154] text-xs sm:text-sm leading-relaxed italic space-y-1">
+            {blockquoteLines.map((bLine, bIdx) => (
+              <p key={bIdx} dangerouslySetInnerHTML={{ __html: formatInline(bLine) }} />
+            ))}
+          </blockquote>
+        );
+      }
+
+      blockquoteLines = [];
+      inBlockquote = false;
+    }
+  };
+
   lines.forEach((line, index) => {
     const trimmed = line.trim();
+
+    // 引用ブロック (>) の判定
+    if (trimmed.startsWith('>')) {
+      if (inTable) flushTable(`table-${index}`);
+      blockquoteLines.push(trimmed.replace(/^>\s*/, ''));
+      inBlockquote = true;
+      return;
+    } else if (inBlockquote) {
+      flushBlockquote(`quote-${index}`);
+    }
 
     // テーブルの判定
     if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
       const cols = trimmed.split('|').slice(1, -1).map((c) => c.trim());
-      // 罫線行 (|---|---|) はスキップ
       if (cols.every((c) => /^[-:\s]+$/.test(c))) {
         inTable = true;
         return;
@@ -165,16 +228,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       return;
     }
 
-    // 引用ブロック (>)
-    if (trimmed.startsWith('>')) {
-      renderedElements.push(
-        <blockquote key={index} className="my-4 p-4 rounded-xl bg-[#f5f5f7] border-l-4 border-[#86868b] text-[#515154] text-xs sm:text-sm leading-relaxed italic">
-          {trimmed.replace(/^>\s*/, '')}
-        </blockquote>
-      );
-      return;
-    }
-
     // 箇条書きリスト
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       renderedElements.push(
@@ -191,6 +244,9 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     );
   });
 
+  if (inBlockquote) {
+    flushBlockquote('quote-end');
+  }
   if (inTable) {
     flushTable('table-end');
   }
@@ -354,7 +410,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           {/* 本文エリア */}
           {viewMode === 'preview' ? (
             <div className="apple-card p-6 sm:p-9 text-[#1d1d1f] bg-white">
-              {/* ブログ本番風のリッチレンダラー */}
+              {/* ブログ本番風のリッチレンダラー（CTA囲み枠対応） */}
               <RichBlogRenderer markdown={draft.contentMarkdown} />
             </div>
           ) : (
