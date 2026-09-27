@@ -859,6 +859,11 @@ export const clientStore = {
     localStorage.setItem(STORAGE_KEYS.HISTORY + '_' + item.clientId, JSON.stringify(filtered.slice(0, 100)));
   },
 
+  clearHistory(clientId: string) {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(STORAGE_KEYS.HISTORY + '_' + clientId);
+  },
+
   getApiKey(): string {
     if (typeof window === 'undefined') return '';
     return localStorage.getItem(STORAGE_KEYS.API_KEY) || '';

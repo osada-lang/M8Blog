@@ -381,6 +381,10 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
             setSelectedRowId(found.id);
           }
         }}
+        onClearHistory={() => {
+          clientStore.clearHistory(client.id);
+          setHistoryItems([]);
+        }}
       />
     </div>
   );

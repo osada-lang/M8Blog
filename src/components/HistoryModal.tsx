@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { KeywordHistoryItem } from '@/types';
-import { History, X, Calendar, Sparkles } from 'lucide-react';
+import { History, X, Calendar, Sparkles, Trash2 } from 'lucide-react';
 
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   historyItems: KeywordHistoryItem[];
   onSelectKeyword?: (keyword: string) => void;
+  onClearHistory?: () => void;
 }
 
 export const HistoryModal: React.FC<HistoryModalProps> = ({
@@ -16,8 +17,17 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
   onClose,
   historyItems,
   onSelectKeyword,
+  onClearHistory,
 }) => {
   if (!isOpen) return null;
+
+  const handleClear = () => {
+    if (confirm('生成履歴をすべてリセット（削除）しますか？')) {
+      if (onClearHistory) {
+        onClearHistory();
+      }
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -34,9 +44,18 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
           </button>
         </div>
 
-        <p className="text-xs text-[#86868b]">
-          過去にブログ記事を生成したキーワードの一覧です（最新順・{historyItems.length}件）。
-        </p>
+        <div className="flex items-center justify-between text-xs text-[#86868b]">
+          <span>過去に生成したキーワード一覧（{historyItems.length}件）</span>
+          {historyItems.length > 0 && onClearHistory && (
+            <button
+              onClick={handleClear}
+              className="text-rose-600 hover:text-rose-700 font-medium flex items-center space-x-1 transition"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>履歴をリセット</span>
+            </button>
+          )}
+        </div>
 
         {historyItems.length === 0 ? (
           <div className="p-8 text-center text-[#86868b] bg-[#f5f5f7] rounded-xl border border-[#e5e5ea]">
