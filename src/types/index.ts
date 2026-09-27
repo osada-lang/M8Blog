@@ -1,4 +1,4 @@
-export type PromptType = 'general' | 'medical';
+export type PromptType = 'general' | 'recruiting' | 'medical';
 
 export interface Client {
   id: string;

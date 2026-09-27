@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Client, PromptType } from '@/types';
-import { Building2, X, Plus, Sparkles, ShieldAlert } from 'lucide-react';
+import { Building2, X, Plus, Building, UserCheck, Stethoscope } from 'lucide-react';
 
 interface ClientModalProps {
   isOpen: boolean;
@@ -68,46 +68,52 @@ export const ClientModal: React.FC<ClientModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3.5 max-h-[75vh] overflow-y-auto pr-1">
-          {/* プロンプトタイプ選択 */}
+          {/* プロンプトタイプ選択（通常 / 採用 / 医療） */}
           <div>
             <label className="text-xs font-semibold text-[#1d1d1f] block mb-1.5">
-              適用するプロンプト種別 <span className="text-rose-500">*</span>
+              標準プロンプト種別 <span className="text-rose-500">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setPromptType('general')}
-                className={`p-3 rounded-xl border text-left transition flex items-center space-x-2 ${
+                className={`p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center space-y-1 ${
                   promptType === 'general'
-                    ? 'bg-white border-[#0066cc] shadow-sm ring-2 ring-[#0066cc]/20'
-                    : 'bg-[#f5f5f7] border-[#e5e5ea] hover:border-[#d2d2d7]'
+                    ? 'bg-white border-[#0066cc] shadow-sm ring-2 ring-[#0066cc]/20 font-semibold text-[#1d1d1f]'
+                    : 'bg-[#f5f5f7] border-[#e5e5ea] hover:border-[#d2d2d7] text-[#86868b]'
                 }`}
               >
-                <div className="p-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <Sparkles className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-[#1d1d1f] block">普通モード</span>
-                  <span className="text-[10px] text-[#86868b] block">365ブログ（一般）</span>
-                </div>
+                <Building className="w-4 h-4 text-[#0066cc]" />
+                <span className="text-xs block">通常用</span>
+                <span className="text-[9px] text-[#86868b] block">365ブログ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPromptType('recruiting')}
+                className={`p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center space-y-1 ${
+                  promptType === 'recruiting'
+                    ? 'bg-white border-emerald-500 shadow-sm ring-2 ring-emerald-500/20 font-semibold text-[#1d1d1f]'
+                    : 'bg-[#f5f5f7] border-[#e5e5ea] hover:border-[#d2d2d7] text-[#86868b]'
+                }`}
+              >
+                <UserCheck className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs block">採用用</span>
+                <span className="text-[9px] text-[#86868b] block">採用特化版</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setPromptType('medical')}
-                className={`p-3 rounded-xl border text-left transition flex items-center space-x-2 ${
+                className={`p-2.5 rounded-xl border text-center transition flex flex-col items-center justify-center space-y-1 ${
                   promptType === 'medical'
-                    ? 'bg-white border-rose-500 shadow-sm ring-2 ring-rose-500/20'
-                    : 'bg-[#f5f5f7] border-[#e5e5ea] hover:border-[#d2d2d7]'
+                    ? 'bg-white border-rose-500 shadow-sm ring-2 ring-rose-500/20 font-semibold text-[#1d1d1f]'
+                    : 'bg-[#f5f5f7] border-[#e5e5ea] hover:border-[#d2d2d7] text-[#86868b]'
                 }`}
               >
-                <div className="p-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-[#1d1d1f] block">医療系モード</span>
-                  <span className="text-[10px] text-[#86868b] block">629医療用YMYL</span>
-                </div>
+                <Stethoscope className="w-4 h-4 text-rose-600" />
+                <span className="text-xs block">医療用</span>
+                <span className="text-[9px] text-[#86868b] block">YMYL</span>
               </button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BlogDraft, Client, KeywordHistoryItem, KeywordSheetRow, KnowledgeItem, PromptTemplate } from '@/types';
+import { BlogDraft, Client, KeywordHistoryItem, KeywordSheetRow, KnowledgeItem, PromptTemplate, PromptType } from '@/types';
 import { clientStore } from '@/lib/store';
 import { 
   Sparkles, 
@@ -10,7 +10,10 @@ import {
   ChevronUp,
   Info,
   ExternalLink,
-  History
+  History,
+  Building,
+  UserCheck,
+  Stethoscope
 } from 'lucide-react';
 import { DraftEditor } from './DraftEditor';
 import { HistoryModal } from './HistoryModal';
@@ -31,6 +34,14 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
   prompts,
   apiKey,
 }) => {
+  // プロンプト種別（通常 / 採用 / 医療）の切り替えステート（初期値は店舗の設定）
+  const [selectedPromptType, setSelectedPromptType] = useState<PromptType>(client.promptType || 'general');
+
+  // クライアント切り替え時にプロンプト種別を同期
+  useEffect(() => {
+    setSelectedPromptType(client.promptType || 'general');
+  }, [client.id, client.promptType]);
+
   // キーワード種別: 'reach' (デフォルト・孫) または 'main' (メイン)
   const [activeKwType, setActiveKwType] = useState<'reach' | 'main'>('reach');
   const [selectedRowId, setSelectedRowId] = useState<string>('');
@@ -61,7 +72,7 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
     }
   }, [activeKwType, sheetRows]);
 
-  const activePrompt = prompts.find((p) => p.type === client.promptType) || prompts[0];
+  const activePrompt = prompts.find((p) => p.type === selectedPromptType) || prompts[0];
   const clientKnowledges = knowledges.filter((k) => k.clientId === client.id);
 
   // 1記事生成
@@ -78,11 +89,10 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
         body: JSON.stringify({
           client,
           knowledges: clientKnowledges,
-          promptTemplate: activePrompt,
           generateRequest: {
             clientId: client.id,
             sheetRow: selectedRow,
-            promptType: client.promptType,
+            promptType: selectedPromptType, // 画面で選択されたプロンプト種別を送信
             apiKey,
           },
         }),
@@ -96,7 +106,7 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
         clientId: client.id,
         keyword: selectedRow.mainKeyword,
         subKeywords: [selectedRow.reachKeyword, selectedRow.suggestKeywords].filter(Boolean) as string[],
-        promptType: client.promptType,
+        promptType: selectedPromptType,
         title: json.data.title,
         contentMarkdown: json.data.contentMarkdown,
         metaDescription: json.data.metaDescription,
@@ -186,6 +196,53 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
                 <ExternalLink className="w-2.5 h-2.5" />
               </a>
             )}
+          </div>
+        </div>
+
+        {/* プロンプト切り替えスイッチ（通常 / 採用 / 医療） */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-[#86868b] block">
+            プロンプト種別（モード）
+          </label>
+          <div className="inline-flex p-1 bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setSelectedPromptType('general')}
+              className={`px-3 sm:px-3.5 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${
+                selectedPromptType === 'general'
+                  ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
+              }`}
+            >
+              <Building className="w-3.5 h-3.5 text-[#0066cc]" />
+              <span>通常（365ブログ）</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedPromptType('recruiting')}
+              className={`px-3 sm:px-3.5 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${
+                selectedPromptType === 'recruiting'
+                  ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>採用特化版</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedPromptType('medical')}
+              className={`px-3 sm:px-3.5 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${
+                selectedPromptType === 'medical'
+                  ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
+              }`}
+            >
+              <Stethoscope className="w-3.5 h-3.5 text-rose-600" />
+              <span>医療用（YMYL）</span>
+            </button>
           </div>
         </div>
 
