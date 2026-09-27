@@ -48,7 +48,7 @@ function countPlainTextCharacters(markdown: string): number {
 }
 
 /**
- * Markdownテキストを実際のブログHTML風に美しく描画するリッチプレビューコンポーネント
+ * 実物の公開Webサイトと同じ上品な明朝体・行間で描画するリッチプレビューコンポーネント
  */
 const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
   const rawLines = markdown.split('\n');
@@ -63,13 +63,13 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
   const flushTable = (key: string) => {
     if (tableHeader.length > 0 || tableRows.length > 0) {
       renderedElements.push(
-        <div key={key} className="my-6 overflow-x-auto rounded-xl border border-[#e5e5ea] bg-white shadow-sm">
+        <div key={key} className="my-8 overflow-x-auto rounded-xl border border-[#e5e5ea] bg-white shadow-sm font-sans">
           <table className="w-full text-xs sm:text-sm text-left border-collapse">
             {tableHeader.length > 0 && (
               <thead className="bg-[#f5f5f7] border-b border-[#e5e5ea] text-[#1d1d1f] font-semibold">
                 <tr>
                   {tableHeader.map((th, i) => (
-                    <th key={i} className="p-3 sm:p-3.5 border-r border-[#e5e5ea] last:border-r-0">
+                    <th key={i} className="p-3.5 sm:p-4 border-r border-[#e5e5ea] last:border-r-0">
                       {th}
                     </th>
                   ))}
@@ -80,7 +80,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
               {tableRows.map((tr, rIdx) => (
                 <tr key={rIdx} className="hover:bg-[#fafafc] transition">
                   {tr.map((td, cIdx) => (
-                    <td key={cIdx} className="p-3 sm:p-3.5 border-r border-[#e5e5ea] last:border-r-0 text-[#515154] leading-relaxed">
+                    <td key={cIdx} className="p-3.5 sm:p-4 border-r border-[#e5e5ea] last:border-r-0 text-[#444] leading-relaxed">
                       {td}
                     </td>
                   ))}
@@ -97,21 +97,19 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
   };
 
   const renderCtaCard = (lines: string[], key: string) => (
-    <div key={key} className="my-6 p-5 sm:p-6 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5] space-y-3.5 shadow-sm text-xs sm:text-sm">
+    <div key={key} className="my-8 p-6 sm:p-8 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5] space-y-4 shadow-sm text-xs sm:text-sm font-sans">
       {lines.map((bLine, bIdx) => {
         const bTrimmed = bLine.trim();
         if (!bTrimmed) return null;
 
-        // ボタン型リンク (▶ [関連ガイド...] 等)
         if (bTrimmed.startsWith('▶') || bTrimmed.includes('関連ガイド') || bTrimmed.includes('想い') || bTrimmed.includes('実績と考え方')) {
           return (
-            <div key={bIdx} className="p-2.5 sm:p-3 bg-white border border-[#c5a880]/60 rounded-xl text-xs sm:text-sm text-[#1d1d1f] font-semibold hover:border-[#0066cc] transition">
+            <div key={bIdx} className="p-3 sm:p-3.5 bg-white border border-[#c5a880]/60 rounded-xl text-xs sm:text-sm text-[#1d1d1f] font-semibold hover:border-[#0066cc] transition">
               <span dangerouslySetInnerHTML={{ __html: formatInline(bTrimmed) }} />
             </div>
           );
         }
 
-        // 見出しタイトル (この記事のテーマを...)
         if (bTrimmed.includes('この記事のテーマを') || bTrimmed.includes('整理したい方へ')) {
           return (
             <p key={bIdx} className="font-bold text-[#1d1d1f] text-sm sm:text-base tracking-tight" dangerouslySetInnerHTML={{ __html: formatInline(bTrimmed) }} />
@@ -134,7 +132,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
         renderedElements.push(renderCtaCard(blockquoteLines, key));
       } else {
         renderedElements.push(
-          <blockquote key={key} className="my-4 p-4 rounded-xl bg-[#f5f5f7] border-l-4 border-[#86868b] text-[#515154] text-xs sm:text-sm leading-relaxed italic space-y-1">
+          <blockquote key={key} className="my-6 p-5 rounded-xl bg-[#f5f5f7] border-l-4 border-[#86868b] text-[#555] text-xs sm:text-sm leading-relaxed italic space-y-1 font-serif">
             {blockquoteLines.map((bLine, bIdx) => (
               <p key={bIdx} dangerouslySetInnerHTML={{ __html: formatInline(bLine) }} />
             ))}
@@ -152,7 +150,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     const line = rawLines[i];
     const trimmed = line.trim();
 
-    // 1. CTAブロック（引用記号 > がなくても「この記事のテーマを〜」から始まるブロックを自動検知して囲み枠化）
+    // 1. CTAブロック自動検知
     if (trimmed.includes('この記事のテーマを') && trimmed.includes('整理したい方へ')) {
       if (inBlockquote) flushBlockquote(`quote-${i}`);
       if (inTable) flushTable(`table-${i}`);
@@ -161,7 +159,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       i++;
       while (i < rawLines.length) {
         const nextLine = rawLines[i].trim();
-        // 3つの考え方 (###) や 次の見出しが来たらCTAブロック終了
         if (nextLine.startsWith('###') || nextLine.startsWith('##') || nextLine.startsWith('📖') || (nextLine === '' && i + 1 < rawLines.length && rawLines[i + 1].trim().startsWith('###'))) {
           break;
         }
@@ -175,7 +172,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // 2. 引用ブロック (>) の判定
+    // 2. 引用ブロック
     if (trimmed.startsWith('>')) {
       if (inTable) flushTable(`table-${i}`);
       blockquoteLines.push(trimmed.replace(/^>\s*/, ''));
@@ -186,7 +183,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       flushBlockquote(`quote-${i}`);
     }
 
-    // 3. テーブルの判定
+    // 3. テーブル
     if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
       const cols = trimmed.split('|').slice(1, -1).map((c) => c.trim());
       if (cols.every((c) => /^[-:\s]+$/.test(c))) {
@@ -211,10 +208,10 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // H1 見出し
+    // H1 見出し（実物通りの明朝体・下線スタイル）
     if (trimmed.startsWith('# ')) {
       renderedElements.push(
-        <h1 key={i} className="text-xl sm:text-2xl font-extrabold text-[#1d1d1f] tracking-tight leading-tight mt-6 mb-4 pb-3 border-b-2 border-[#1d1d1f]">
+        <h1 key={i} className="text-2xl sm:text-3xl font-normal text-[#1d1d1f] tracking-tight leading-tight mt-6 mb-8 pb-4 border-b-2 border-[#1d1d1f]">
           {trimmed.replace(/^#\s+/, '')}
         </h1>
       );
@@ -225,7 +222,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     // H2 見出し
     if (trimmed.startsWith('## ')) {
       renderedElements.push(
-        <h2 key={i} className="text-lg sm:text-xl font-bold text-[#1d1d1f] tracking-tight mt-8 mb-3.5 pl-3 border-l-4 border-[#0066cc]">
+        <h2 key={i} className="text-xl sm:text-2xl font-normal text-[#1d1d1f] tracking-tight mt-12 mb-5 pl-4 border-l-4 border-[#c5a880]">
           {trimmed.replace(/^##\s+/, '')}
         </h2>
       );
@@ -236,7 +233,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     // H3 見出し
     if (trimmed.startsWith('### ')) {
       renderedElements.push(
-        <h3 key={i} className="text-base sm:text-lg font-semibold text-[#1d1d1f] mt-6 mb-2.5">
+        <h3 key={i} className="text-lg sm:text-xl font-medium text-[#1d1d1f] mt-8 mb-3">
           {trimmed.replace(/^###\s+/, '')}
         </h3>
       );
@@ -246,7 +243,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
 
     // 水平線
     if (/^[-*_]{3,}$/.test(trimmed)) {
-      renderedElements.push(<hr key={i} className="my-6 border-t border-[#e5e5ea]" />);
+      renderedElements.push(<hr key={i} className="my-8 border-t border-[#e5e5ea]" />);
       i++;
       continue;
     }
@@ -254,7 +251,7 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     // 箇条書きリスト
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       renderedElements.push(
-        <li key={i} className="ml-5 list-disc text-xs sm:text-sm text-[#515154] leading-relaxed my-1">
+        <li key={i} className="ml-6 list-disc text-sm sm:text-base text-[#333] leading-loose my-2 font-serif">
           <span dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s+/, '')) }} />
         </li>
       );
@@ -262,9 +259,9 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // 通常段落
+    // 通常段落（実物ブログと同じ上品な明朝体・ゆったりした行間）
     renderedElements.push(
-      <p key={i} className="text-xs sm:text-sm text-[#333336] leading-relaxed my-3" dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }} />
+      <p key={i} className="text-sm sm:text-base text-[#2c2c2e] leading-loose my-5 font-serif tracking-normal" dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }} />
     );
     i++;
   }
@@ -276,12 +273,16 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     flushTable('table-end');
   }
 
-  return <div className="space-y-1">{renderedElements}</div>;
+  return (
+    <div style={{ fontFamily: '"Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "Noto Serif JP", serif' }}>
+      {renderedElements}
+    </div>
+  );
 };
 
 function formatInline(text: string): string {
   return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[#1d1d1f]">$1</strong>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[#111]">$1</strong>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-[#0066cc] hover:underline font-medium">$1</a>');
 }
 
@@ -347,7 +348,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
   const scoreInfo = factCheck ? getScoreBadge(factCheck.score) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto w-full">
       {/* 記事タイトル & 操作ヘッダー */}
       <div className="apple-card p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -395,98 +396,95 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
         )}
       </div>
 
-      {/* メインビュー */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* 左側: 記事本文 */}
-        <div className="lg:col-span-8 space-y-4">
-          {/* 切り替えバー ＆ 正確な純テキスト文字数表示 */}
-          <div className="flex items-center justify-between apple-card px-4 py-2.5">
-            <div className="flex items-center space-x-1 bg-[#f5f5f7] p-1 rounded-full border border-[#e5e5ea] text-xs font-medium">
-              <button
-                onClick={() => setViewMode('preview')}
-                className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
-                  viewMode === 'preview' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
-                }`}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>ブログ表示プレビュー</span>
-              </button>
-              <button
-                onClick={() => setViewMode('edit')}
-                className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
-                  viewMode === 'edit' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
-                }`}
-              >
-                <FileEdit className="w-3.5 h-3.5" />
-                <span>Markdown直接編集</span>
-              </button>
-            </div>
-
-            {/* 本文実文字数（Markdown記号・空白除外） */}
-            <div className="text-right">
-              <span className="text-xs font-semibold text-[#1d1d1f]">
-                本文実文字数: <strong className="text-[#0066cc]">{plainCharCount.toLocaleString()}</strong> 文字
-              </span>
-            </div>
+      {/* メインコンテンツ（実物記事と同じフル幅レイアウト） */}
+      <div className="space-y-6">
+        {/* 切り替えバー ＆ 正確な純テキスト文字数表示 */}
+        <div className="flex items-center justify-between apple-card px-4 py-2.5">
+          <div className="flex items-center space-x-1 bg-[#f5f5f7] p-1 rounded-full border border-[#e5e5ea] text-xs font-medium">
+            <button
+              onClick={() => setViewMode('preview')}
+              className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
+                viewMode === 'preview' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>ブログ表示プレビュー（実物風）</span>
+            </button>
+            <button
+              onClick={() => setViewMode('edit')}
+              className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
+                viewMode === 'edit' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
+              }`}
+            >
+              <FileEdit className="w-3.5 h-3.5" />
+              <span>Markdown直接編集</span>
+            </button>
           </div>
 
-          {/* 本文エリア */}
-          {viewMode === 'preview' ? (
-            <div className="apple-card p-6 sm:p-9 text-[#1d1d1f] bg-white">
-              {/* ブログ本番風のリッチレンダラー（自動CTAカードボックス検知対応） */}
-              <RichBlogRenderer markdown={draft.contentMarkdown} />
-            </div>
-          ) : (
-            <textarea
-              rows={26}
-              className="w-full apple-card p-4 sm:p-5 text-xs sm:text-sm text-[#1d1d1f] font-mono leading-relaxed focus:outline-none focus:border-[#0066cc]"
-              value={draft.contentMarkdown}
-              onChange={(e) => handleContentChange(e.target.value)}
-            />
-          )}
+          {/* 本文実文字数 */}
+          <div className="text-right">
+            <span className="text-xs font-semibold text-[#1d1d1f]">
+              本文実文字数: <strong className="text-[#0066cc]">{plainCharCount.toLocaleString()}</strong> 文字
+            </span>
+          </div>
+        </div>
 
-          {/* メタ情報 */}
-          <div className="apple-card p-4 sm:p-5 space-y-3">
-            <h3 className="text-xs font-semibold text-[#86868b] uppercase tracking-wider">
-              記事メタ情報（LLMO / SEO設定）
-            </h3>
-            <div>
-              <span className="text-xs font-medium text-[#86868b] block mb-1">メタディスクリプション:</span>
-              <p className="text-xs text-[#1d1d1f] bg-[#f5f5f7] p-2.5 rounded-xl border border-[#e5e5ea]">
-                {draft.metaDescription || '未設定'}
-              </p>
-            </div>
-            <div>
-              <span className="text-xs font-medium text-[#86868b] block mb-1">推奨タグ:</span>
-              <div className="flex flex-wrap gap-1.5">
-                {draft.suggestedTags.map((tag, i) => (
-                  <span
-                    key={i}
-                    className="text-xs px-2.5 py-1 rounded-full bg-[#f5f5f7] text-[#1d1d1f] border border-[#e5e5ea]"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
+        {/* 本文エリア（実物と同じフル幅 ＆ 上品な明朝体） */}
+        {viewMode === 'preview' ? (
+          <div className="apple-card p-6 sm:p-12 text-[#1d1d1f] bg-white shadow-sm border border-[#e5e5ea]">
+            <RichBlogRenderer markdown={draft.contentMarkdown} />
+          </div>
+        ) : (
+          <textarea
+            rows={26}
+            className="w-full apple-card p-4 sm:p-6 text-xs sm:text-sm text-[#1d1d1f] font-mono leading-relaxed focus:outline-none focus:border-[#0066cc]"
+            value={draft.contentMarkdown}
+            onChange={(e) => handleContentChange(e.target.value)}
+          />
+        )}
+
+        {/* メタ情報 */}
+        <div className="apple-card p-4 sm:p-5 space-y-3">
+          <h3 className="text-xs font-semibold text-[#86868b] uppercase tracking-wider">
+            記事メタ情報（LLMO / SEO設定）
+          </h3>
+          <div>
+            <span className="text-xs font-medium text-[#86868b] block mb-1">メタディスクリプション:</span>
+            <p className="text-xs text-[#1d1d1f] bg-[#f5f5f7] p-2.5 rounded-xl border border-[#e5e5ea]">
+              {draft.metaDescription || '未設定'}
+            </p>
+          </div>
+          <div>
+            <span className="text-xs font-medium text-[#86868b] block mb-1">推奨タグ:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {draft.suggestedTags.map((tag, i) => (
+                <span
+                  key={i}
+                  className="text-xs px-2.5 py-1 rounded-full bg-[#f5f5f7] text-[#1d1d1f] border border-[#e5e5ea]"
+                >
+                  #{tag}
+                </span>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* 右側: ファクトチェック指摘 */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="apple-card p-4 sm:p-5 space-y-4">
+        {/* 検証結果詳細 ＆ 参照文献（本文の下にワイド配置） */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2">
+          {/* 左側: ファクトチェック指摘事項 */}
+          <div className="md:col-span-8 apple-card p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-[#1d1d1f] flex items-center space-x-1.5">
                 <ShieldCheck className="w-4 h-4 text-[#0066cc]" />
-                <span>検証結果詳細</span>
+                <span>ファクトチェック検証詳細</span>
               </h3>
               {onRecheckFact && (
                 <button
                   onClick={onRecheckFact}
                   disabled={isRechecking}
-                  className="text-xs text-[#0066cc] hover:underline"
+                  className="text-xs text-[#0066cc] hover:underline font-medium"
                 >
-                  {isRechecking ? '再検証中...' : '再検証'}
+                  {isRechecking ? '再検証中...' : '再検証を実行'}
                 </button>
               )}
             </div>
@@ -500,7 +498,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                 {factCheck.issues.map((issue) => (
                   <div
                     key={issue.id}
@@ -533,7 +531,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                       </span>
                     </div>
 
-                    <div className="font-mono text-xs bg-white p-2 rounded-lg border border-[#e5e5ea]">
+                    <div className="font-mono text-xs bg-white p-2.5 rounded-lg border border-[#e5e5ea]">
                       &quot;{issue.highlightText}&quot;
                     </div>
 
@@ -542,8 +540,8 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                     </p>
 
                     {issue.suggestion && (
-                      <div className="text-[11px] text-[#0066cc] bg-blue-50 p-2 rounded-lg border border-blue-100">
-                        <span className="font-semibold block">💡 修正アドバイス:</span>
+                      <div className="text-[11px] text-[#0066cc] bg-blue-50 p-2.5 rounded-lg border border-blue-100">
+                        <span className="font-semibold block mb-0.5">💡 修正アドバイス:</span>
                         {issue.suggestion}
                       </div>
                     )}
@@ -553,24 +551,24 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
             )}
           </div>
 
-          {/* 参照された文献 */}
-          <div className="apple-card p-4 sm:p-5 space-y-3">
+          {/* 右側: 参照された文献 */}
+          <div className="md:col-span-4 apple-card p-5 sm:p-6 space-y-3">
             <h3 className="text-xs font-semibold text-[#86868b] uppercase tracking-wider flex items-center space-x-1.5">
               <BookOpen className="w-3.5 h-3.5 text-[#0066cc]" />
-              <span>根拠として参照された文献データ</span>
+              <span>根拠として参照された文献</span>
             </h3>
             {draft.usedKnowledgeIds.length === 0 ? (
               <p className="text-xs text-[#86868b]">文献の参照はありません</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {knowledges
                   .filter((k) => draft.usedKnowledgeIds.includes(k.id))
                   .map((k) => (
                     <li
                       key={k.id}
-                      className="text-xs bg-[#f5f5f7] p-2.5 rounded-xl border border-[#e5e5ea] text-[#1d1d1f]"
+                      className="text-xs bg-[#f5f5f7] p-3 rounded-xl border border-[#e5e5ea] text-[#1d1d1f]"
                     >
-                      <span className="font-semibold block truncate">{k.title}</span>
+                      <span className="font-semibold block leading-snug">{k.title}</span>
                     </li>
                   ))}
               </ul>
