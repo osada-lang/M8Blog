@@ -122,7 +122,7 @@ export async function generateArticleWithClaude(
     try {
       const response = await anthropic.messages.create({
         model,
-        max_tokens: 8192, // 最大値に引き上げ（途切れ防止）
+        max_tokens: 8192,
         temperature: 0.2,
         system: promptTemplate.systemPrompt,
         messages: [
@@ -153,6 +153,12 @@ export async function generateArticleWithClaude(
   if (!fullText) {
     throw lastError || new Error('Claudeモデルでの記事生成に失敗しました');
   }
+
+  // 記事末尾の自己申告テキスト（例: **文字数：4,798文字** や 文字数：〇〇文字）を自動除去
+  fullText = fullText
+    .replace(/[-*_]{3,}\s*\n+\*?\*?文字数[：:]\s*[\d,]+文字?\*?\*?\s*$/i, '')
+    .replace(/\*?\*?文字数[：:]\s*[\d,]+文字?\*?\*?\s*$/i, '')
+    .trim();
 
   // Claudeが生成したMarkdownからタイトル（H1）のみを抽出
   const lines = fullText.split('\n');
