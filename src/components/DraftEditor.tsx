@@ -22,6 +22,190 @@ interface DraftEditorProps {
   isRechecking?: boolean;
 }
 
+/**
+ * Markdown記号や改行・空白を除去して「純粋な本文の日本語文字数」をカウントする関数
+ */
+function countPlainTextCharacters(markdown: string): number {
+  if (!markdown) return 0;
+
+  const plainText = markdown
+    // 見出しタグ (#, ##, ### 等) を削除
+    .replace(/^#{1,6}\s+/gm, '')
+    // 太字・斜体 (**, *, __, _) を削除
+    .replace(/(\*\*|__)(.*?)\1/g, '$2')
+    .replace(/(\*|_)(.*?)\1/g, '$2')
+    // リンク [text](url) -> text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // 画像 ![alt](url) -> 削除
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    // 引用 (>) を削除
+    .replace(/^>\s+/gm, '')
+    // 箇条書き (- , * , 1. ) を削除
+    .replace(/^[\s]*[-*+]\s+/gm, '')
+    .replace(/^[\s]*\d+\.\s+/gm, '')
+    // 表の罫線 (|---|---|) を削除
+    .replace(/\|[-:\s|]+\|/g, '')
+    .replace(/\|/g, ' ')
+    // 水平線 (---, ***) を削除
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    // コードブロック (```...```) を削除
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    // 空白・改行・タブをすべて除去
+    .replace(/\s+/g, '');
+
+  return plainText.length;
+}
+
+/**
+ * Markdownテキストを実際のブログHTML風に美しく描画するリッチプレビューコンポーネント
+ */
+const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
+  const lines = markdown.split('\n');
+  const renderedElements: React.ReactNode[] = [];
+  let inTable = false;
+  let tableHeader: string[] = [];
+  let tableRows: string[][] = [];
+
+  const flushTable = (key: string) => {
+    if (tableHeader.length > 0 || tableRows.length > 0) {
+      renderedElements.push(
+        <div key={key} className="my-6 overflow-x-auto rounded-xl border border-[#e5e5ea] bg-white shadow-sm">
+          <table className="w-full text-xs sm:text-sm text-left border-collapse">
+            {tableHeader.length > 0 && (
+              <thead className="bg-[#f5f5f7] border-b border-[#e5e5ea] text-[#1d1d1f] font-semibold">
+                <tr>
+                  {tableHeader.map((th, i) => (
+                    <th key={i} className="p-3 sm:p-3.5 border-r border-[#e5e5ea] last:border-r-0">
+                      {th}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody className="divide-y divide-[#e5e5ea]">
+              {tableRows.map((tr, rIdx) => (
+                <tr key={rIdx} className="hover:bg-[#fafafc] transition">
+                  {tr.map((td, cIdx) => (
+                    <td key={cIdx} className="p-3 sm:p-3.5 border-r border-[#e5e5ea] last:border-r-0 text-[#515154] leading-relaxed">
+                      {td}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      tableHeader = [];
+      tableRows = [];
+      inTable = false;
+    }
+  };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+
+    // テーブルの判定
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      const cols = trimmed.split('|').slice(1, -1).map((c) => c.trim());
+      // 罫線行 (|---|---|) はスキップ
+      if (cols.every((c) => /^[-:\s]+$/.test(c))) {
+        inTable = true;
+        return;
+      }
+      if (!inTable) {
+        tableHeader = cols;
+        inTable = true;
+      } else {
+        tableRows.push(cols);
+      }
+      return;
+    } else if (inTable) {
+      flushTable(`table-${index}`);
+    }
+
+    if (!trimmed) {
+      return;
+    }
+
+    // H1 見出し
+    if (trimmed.startsWith('# ')) {
+      renderedElements.push(
+        <h1 key={index} className="text-xl sm:text-2xl font-extrabold text-[#1d1d1f] tracking-tight leading-tight mt-6 mb-4 pb-3 border-b-2 border-[#1d1d1f]">
+          {trimmed.replace(/^#\s+/, '')}
+        </h1>
+      );
+      return;
+    }
+
+    // H2 見出し
+    if (trimmed.startsWith('## ')) {
+      renderedElements.push(
+        <h2 key={index} className="text-lg sm:text-xl font-bold text-[#1d1d1f] tracking-tight mt-8 mb-3.5 pl-3 border-l-4 border-[#0066cc]">
+          {trimmed.replace(/^##\s+/, '')}
+        </h2>
+      );
+      return;
+    }
+
+    // H3 見出し
+    if (trimmed.startsWith('### ')) {
+      renderedElements.push(
+        <h3 key={index} className="text-base sm:text-lg font-semibold text-[#1d1d1f] mt-6 mb-2.5">
+          {trimmed.replace(/^###\s+/, '')}
+        </h3>
+      );
+      return;
+    }
+
+    // 水平線
+    if (/^[-*_]{3,}$/.test(trimmed)) {
+      renderedElements.push(<hr key={index} className="my-6 border-t border-[#e5e5ea]" />);
+      return;
+    }
+
+    // 引用ブロック (>)
+    if (trimmed.startsWith('>')) {
+      renderedElements.push(
+        <blockquote key={index} className="my-4 p-4 rounded-xl bg-[#f5f5f7] border-l-4 border-[#86868b] text-[#515154] text-xs sm:text-sm leading-relaxed italic">
+          {trimmed.replace(/^>\s*/, '')}
+        </blockquote>
+      );
+      return;
+    }
+
+    // 箇条書きリスト
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      renderedElements.push(
+        <li key={index} className="ml-5 list-disc text-xs sm:text-sm text-[#515154] leading-relaxed my-1">
+          <span dangerouslySetInnerHTML={{ __html: formatInline(trimmed.replace(/^[-*]\s+/, '')) }} />
+        </li>
+      );
+      return;
+    }
+
+    // 通常段落
+    renderedElements.push(
+      <p key={index} className="text-xs sm:text-sm text-[#333336] leading-relaxed my-3" dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }} />
+    );
+  });
+
+  if (inTable) {
+    flushTable('table-end');
+  }
+
+  return <div className="space-y-1">{renderedElements}</div>;
+};
+
+function formatInline(text: string): string {
+  return text
+    // 太字 **text** -> <strong>
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[#1d1d1f]">$1</strong>')
+    // リンク [text](url) -> <a>
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-[#0066cc] hover:underline font-medium">$1</a>');
+}
+
 export const DraftEditor: React.FC<DraftEditorProps> = ({
   draft,
   knowledges,
@@ -33,6 +217,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
   const [copied, setCopied] = useState(false);
 
   const factCheck = draft.factCheck;
+  const plainCharCount = countPlainTextCharacters(draft.contentMarkdown);
 
   const handleContentChange = (newContent: string) => {
     onUpdateDraft({
@@ -135,42 +320,47 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* 左側: 記事本文 */}
         <div className="lg:col-span-8 space-y-4">
+          {/* 切り替えバー ＆ 正確な純テキスト文字数表示 */}
           <div className="flex items-center justify-between apple-card px-4 py-2.5">
             <div className="flex items-center space-x-1 bg-[#f5f5f7] p-1 rounded-full border border-[#e5e5ea] text-xs font-medium">
               <button
                 onClick={() => setViewMode('preview')}
-                className={`px-3 py-1 rounded-full flex items-center space-x-1 transition ${
+                className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
                   viewMode === 'preview' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
                 }`}
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>プレビュー</span>
+                <span>ブログ表示プレビュー</span>
               </button>
               <button
                 onClick={() => setViewMode('edit')}
-                className={`px-3 py-1 rounded-full flex items-center space-x-1 transition ${
+                className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
                   viewMode === 'edit' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
                 }`}
               >
                 <FileEdit className="w-3.5 h-3.5" />
-                <span>直接編集</span>
+                <span>Markdown直接編集</span>
               </button>
             </div>
-            <span className="text-xs text-[#86868b]">
-              {draft.contentMarkdown.length} 文字
-            </span>
+
+            {/* 本文実文字数（Markdown記号・空白除外） */}
+            <div className="text-right">
+              <span className="text-xs font-semibold text-[#1d1d1f]">
+                本文実文字数: <strong className="text-[#0066cc]">{plainCharCount.toLocaleString()}</strong> 文字
+              </span>
+            </div>
           </div>
 
+          {/* 本文エリア */}
           {viewMode === 'preview' ? (
-            <div className="apple-card p-5 sm:p-8 text-[#1d1d1f] max-w-none">
-              <div className="whitespace-pre-wrap font-sans leading-relaxed text-xs sm:text-sm space-y-3">
-                {draft.contentMarkdown}
-              </div>
+            <div className="apple-card p-6 sm:p-9 text-[#1d1d1f] bg-white">
+              {/* ブログ本番風のリッチレンダラー */}
+              <RichBlogRenderer markdown={draft.contentMarkdown} />
             </div>
           ) : (
             <textarea
-              rows={24}
-              className="w-full apple-card p-4 text-xs text-[#1d1d1f] font-mono leading-relaxed focus:outline-none focus:border-[#0066cc]"
+              rows={26}
+              className="w-full apple-card p-4 sm:p-5 text-xs sm:text-sm text-[#1d1d1f] font-mono leading-relaxed focus:outline-none focus:border-[#0066cc]"
               value={draft.contentMarkdown}
               onChange={(e) => handleContentChange(e.target.value)}
             />
