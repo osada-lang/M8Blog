@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateArticleWithClaude } from '@/lib/claude';
 import { runFactCheck } from '@/lib/factcheck';
-import { Client, GenerateArticleRequest, KnowledgeItem, PromptTemplate } from '@/types';
+import { DEFAULT_PROMPT_TEMPLATES } from '@/lib/defaultPrompts';
+import { Client, GenerateArticleRequest, KnowledgeItem } from '@/types';
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,12 +10,10 @@ export async function POST(req: NextRequest) {
     const {
       client,
       knowledges,
-      promptTemplate,
       generateRequest,
     }: {
       client: Client;
       knowledges: KnowledgeItem[];
-      promptTemplate: PromptTemplate;
       generateRequest: GenerateArticleRequest;
     } = body;
 
@@ -22,11 +21,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'クライアント情報とキーワード設計情報は必須です' }, { status: 400 });
     }
 
-    // 1. Claude 3.5 Sonnet による下書き生成（文献要約RAG × スプシ各列の完全マッピング）
+    // サーバー側の最新マスタープロンプトを常に直接適用（キャッシュによる古い指示の残存を完全防止）
+    const promptType = generateRequest.promptType || client.promptType || 'general';
+    const activePrompt =
+      DEFAULT_PROMPT_TEMPLATES.find((p) => p.type === promptType) ||
+      DEFAULT_PROMPT_TEMPLATES[0];
+
+    // 1. Claude による下書き生成（文献要約RAG × スプシ各列の完全マッピング）
     const output = await generateArticleWithClaude(
       client,
       knowledges || [],
-      promptTemplate,
+      activePrompt,
       generateRequest
     );
 
@@ -34,7 +39,7 @@ export async function POST(req: NextRequest) {
     const factCheck = await runFactCheck(
       output.contentMarkdown,
       knowledges || [],
-      generateRequest.promptType,
+      promptType,
       generateRequest.apiKey
     );
 

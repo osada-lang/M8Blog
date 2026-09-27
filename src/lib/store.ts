@@ -820,13 +820,7 @@ export const clientStore = {
   },
 
   getPrompts(): PromptTemplate[] {
-    if (typeof window === 'undefined') return DEFAULT_PROMPT_TEMPLATES;
-    const data = localStorage.getItem(STORAGE_KEYS.PROMPTS);
-    if (!data) {
-      localStorage.setItem(STORAGE_KEYS.PROMPTS, JSON.stringify(DEFAULT_PROMPT_TEMPLATES));
-      return DEFAULT_PROMPT_TEMPLATES;
-    }
-    return JSON.parse(data);
+    return DEFAULT_PROMPT_TEMPLATES;
   },
 
   getSheetRows(clientId: string): KeywordSheetRow[] {
