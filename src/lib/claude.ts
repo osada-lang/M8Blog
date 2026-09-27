@@ -122,7 +122,7 @@ export async function generateArticleWithClaude(
     try {
       const response = await anthropic.messages.create({
         model,
-        max_tokens: 4500,
+        max_tokens: 8192, // 最大値に引き上げ（途切れ防止）
         temperature: 0.2,
         system: promptTemplate.systemPrompt,
         messages: [
@@ -154,7 +154,7 @@ export async function generateArticleWithClaude(
     throw lastError || new Error('Claudeモデルでの記事生成に失敗しました');
   }
 
-  // Claudeが生成したMarkdownからタイトル（H1）のみを抽出（本文はそのまま100%返却）
+  // Claudeが生成したMarkdownからタイトル（H1）のみを抽出
   const lines = fullText.split('\n');
   let title = row.mainKeyword;
   for (const line of lines) {
