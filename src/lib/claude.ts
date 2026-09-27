@@ -27,7 +27,6 @@ export async function resolveBestModel(apiKey: string): Promise<string> {
       const data = await res.json();
       const availableModels: string[] = (data.data || []).map((m: any) => m.id);
 
-      // 優先度順で最初に見つかった利用可能モデルを返す
       const preferred = [
         'claude-sonnet-5',
         'claude-5-sonnet',
@@ -50,7 +49,6 @@ export async function resolveBestModel(apiKey: string): Promise<string> {
         }
       }
 
-      // 優先リストに完全一致がない場合、Sonnet > Opus > Haiku の部分一致で選択
       const sonnetModel = availableModels.find((m) => m.includes('sonnet'));
       if (sonnetModel) return sonnetModel;
 
@@ -66,7 +64,6 @@ export async function resolveBestModel(apiKey: string): Promise<string> {
     console.warn('Failed to dynamically fetch available models:', err);
   }
 
-  // フォールバック
   return 'claude-sonnet-5';
 }
 
@@ -79,20 +76,20 @@ export async function generateArticleWithClaude(
   const apiKey = req.apiKey || process.env.ANTHROPIC_API_KEY;
   const row = req.sheetRow;
 
-  // 文献要約集からキーワードに関連する章をRAG検索
+  // 文献要約集・ヒアリングシートから関連する章を抽出
   const ragResult = buildRagContext(
     knowledges,
     row.mainKeyword,
     [row.reachKeyword, row.category].filter(Boolean) as string[],
-    6
+    8
   );
 
-  // ユーザープロンプトテンプレートへの完全マッピング
+  // ユーザープロンプトテンプレートへの完全マッピング（余計な加工なし）
   const userPrompt = promptTemplate.userPromptTemplate
     .replace(/\{\{CLIENT_NAME\}\}/g, client.name)
     .replace(/\{\{CLIENT_INDUSTRY\}\}/g, client.industry || '一般')
     .replace(/\{\{KEYWORD\}\}/g, row.mainKeyword)
-    .replace(/\{\{REACH_KEYWORD\}\}/g, row.reachKeyword || row.suggestKeywords || '特になし')
+    .replace(/\{\{REACH_KEYWORD\}\}/g, row.reachKeyword || row.suggestKeywords || 'なし')
     .replace(/\{\{SEARCH_INTENT\}\}/g, row.searchIntent)
     .replace(/\{\{SEARCH_STORY\}\}/g, row.searchIntent)
     .replace(/\{\{TARGET_AUDIENCE\}\}/g, row.targetAudience)
@@ -101,12 +98,10 @@ export async function generateArticleWithClaude(
     .replace(/\{\{UNIQUE_POINT\}\}/g, row.uniquePoint || 'この記事独自の視点・切り口')
     .replace(/\{\{KNOWLEDGE_CONTEXT\}\}/g, ragResult.formattedContext);
 
-  // APIキー未設定時のモック生成（動作確認用）
   if (!apiKey) {
     return generateMockArticle(client, row, ragResult.usedKnowledgeIds);
   }
 
-  // 利用可能な最適モデルを自動解決
   const selectedModel = await resolveBestModel(apiKey);
   const anthropic = new Anthropic({ apiKey });
 
@@ -159,15 +154,9 @@ export async function generateArticleWithClaude(
     throw lastError || new Error('Claudeモデルでの記事生成に失敗しました');
   }
 
-  return parseGeneratedArticle(fullText, row.mainKeyword, ragResult.usedKnowledgeIds);
-}
-
-function parseGeneratedArticle(rawText: string, keyword: string, usedKnowledgeIds: string[]): GenerationOutput {
-  const lines = rawText.split('\n');
-  let title = `${keyword}に関するお役立ちガイド`;
-  let metaDescription = '';
-  const suggestedTags: string[] = [keyword];
-
+  // Claudeが生成したMarkdownからタイトル（H1）のみを抽出（本文はそのまま100%返却）
+  const lines = fullText.split('\n');
+  let title = row.mainKeyword;
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.startsWith('# ')) {
@@ -176,30 +165,12 @@ function parseGeneratedArticle(rawText: string, keyword: string, usedKnowledgeId
     }
   }
 
-  const metaMatch =
-    rawText.match(/メタディスクリプション[：:]\s*(.+)/i) ||
-    rawText.match(/概要[：:]\s*(.+)/i);
-  if (metaMatch && metaMatch[1]) {
-    metaDescription = metaMatch[1].trim().slice(0, 160);
-  } else {
-    const firstParagraph = lines.find((l) => l.trim().length > 30 && !l.startsWith('#')) || '';
-    metaDescription = firstParagraph.slice(0, 120);
-  }
-
-  const tagMatch =
-    rawText.match(/タグ[：:]\s*(.+)/i) ||
-    rawText.match(/推奨タグ[：:]\s*(.+)/i);
-  if (tagMatch && tagMatch[1]) {
-    const extracted = tagMatch[1].split(/[,、\s]+/).filter((t) => t.trim().length > 0 && !t.includes('タグ'));
-    suggestedTags.push(...extracted.map((t) => t.replace(/^[#]/, '')));
-  }
-
   return {
     title,
-    contentMarkdown: rawText,
-    metaDescription,
-    suggestedTags: Array.from(new Set(suggestedTags)),
-    usedKnowledgeIds,
+    contentMarkdown: fullText,
+    metaDescription: row.conclusion || '',
+    suggestedTags: [row.mainKeyword, client.name],
+    usedKnowledgeIds: ragResult.usedKnowledgeIds,
   };
 }
 
@@ -242,45 +213,33 @@ ${client.name}では、患者様の不安を解消するための丁寧なカウ
 ※本記事は一般的な医療情報の提供を目的とし、診断・治療の代替ではありません。症状が続く場合や判断に迷う場合は医師等の専門家へご相談ください。
 `;
   } else {
-    markdown = `# ${row.mainKeyword}とは？失敗しない判断基準と職種の違いを徹底解説
+    markdown = `# ${row.mainKeyword}とは？失敗しない判断基準とポイント解説｜${client.name}
 
 ## 冒頭サマリー（AI要約）
 **【結論】**: ${row.conclusion}
 
-「${row.mainKeyword}」に興味を持ったものの、「本当に自分にできるのか」「華やかなイメージだけで決めて後悔しないか」と迷っていませんか？
-転職や応募で大切なのは、勢いだけで決めず、仕事内容と自分の適性を客観的に整理して判断することです。
+「${row.mainKeyword}」について検討する際、何から整理すべきか迷っていませんか？
+大切なのは、表面的な情報だけで決めず、自社の状況と目的に合った判断基準を持つことです。
 
 ## 1. なぜ「${row.mainKeyword}」で迷いが生じるのか？
-SNSマーケティングの仕事は、単にスマホで動画を投稿する作業ではありません。
-クライアントの採用課題や集客課題をヒアリングし、企画、撮影、編集、運用、分析改善まで多岐にわたる役割が存在します。
+多くの企業や担当者が直面する課題は、情報が多すぎて本当に必要な選択肢が見えなくなることです。
 
 ### 本記事独自の重要視点
-${row.uniquePoint || '仕事内容を6つの判断軸で整理し、自分に合う役割を見極めることが重要です。'}
+${row.uniquePoint || '事実に基づき、自社に最適な判断基準を整理することが重要です。'}
 
-## 2. 職種ごとの役割分担
-1. **SNSディレクター**: 企画・進行・分析改善
-2. **採用ディレクター**: 企業の採用課題へのアプローチ
-3. **動画編集・制作**: 素材編集・テロップ設計
-4. **法人営業**: 企業へのヒアリング・提案
+## 2. ${client.name}における考え方と実績
+${client.name}では、お客様の課題を深く理解し、本質的な価値を伝える支援を大切にしています。
 
-## 3. ${client.name}における育成方針と実態
-${client.name}では、未経験からでも安心して挑戦できるよう、OJT研修や明確な業務フローを整備しています。
-スケジュール管理や丁寧なコミュニケーションを重視し、現実の業務内容をオープンに共有しています。
-
-## 4. よくある質問（FAQ）
-**Q. 未経験でも応募可能ですか？**  
-A. 可能です。SNSへの興味に加え、既存の接客・事務・営業などで培った段取り力や質問力が大きな強みになります。
-
-## 5. まとめ
-自分の強みが「つくる・進める・提案する」のどこにあるかを整理し、納得できる応募判断を行いましょう。
+## 3. まとめ
+まずは自社の現状と優先課題を整理し、納得できる判断を行いましょう。
 `;
   }
 
   return {
     title: `${row.mainKeyword}とは？失敗しない判断基準｜${client.name}`,
     contentMarkdown: markdown,
-    metaDescription: `${row.mainKeyword}について${client.name}が解説。${row.conclusion}`,
-    suggestedTags: [row.mainKeyword, client.industry, client.name],
+    metaDescription: row.conclusion || '',
+    suggestedTags: [row.mainKeyword, client.name],
     usedKnowledgeIds,
   };
 }

@@ -18,7 +18,7 @@ export interface RagResult {
 /**
  * テキストを指定サイズのチャンクに分割する
  */
-export function chunkText(text: string, chunkSize: number = 500, overlap: number = 100): string[] {
+export function chunkText(text: string, chunkSize: number = 800, overlap: number = 150): string[] {
   if (!text || text.length <= chunkSize) {
     return [text];
   }
@@ -37,7 +37,7 @@ export function chunkText(text: string, chunkSize: number = 500, overlap: number
 }
 
 /**
- * キーワードとナレッジ間の簡易BM25/TF-IDFライクな関連スコア計算
+ * キーワードとナレッジ間の関連スコア計算
  */
 function calculateRelevance(text: string, searchTerms: string[]): number {
   let score = 0;
@@ -46,12 +46,12 @@ function calculateRelevance(text: string, searchTerms: string[]): number {
   for (const term of searchTerms) {
     if (!term) continue;
     const lowerTerm = term.toLowerCase();
-    
+
     // 完全一致
     const count = (lowerText.match(new RegExp(lowerTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
     score += count * 3;
 
-    // 部分一致（2文字以上の分割）
+    // 部分一致
     if (lowerTerm.length >= 2) {
       for (let i = 0; i < lowerTerm.length - 1; i++) {
         const sub = lowerTerm.slice(i, i + 2);
@@ -66,7 +66,7 @@ function calculateRelevance(text: string, searchTerms: string[]): number {
 }
 
 /**
- * クライアントの全ナレッジからキーワードに最も関連するコンテキストを抽出・整形する
+ * クライアントの全資料からキーワードに関連するコンテキストを抽出
  */
 export function buildRagContext(
   knowledges: KnowledgeItem[],
@@ -76,7 +76,7 @@ export function buildRagContext(
 ): RagResult {
   if (!knowledges || knowledges.length === 0) {
     return {
-      formattedContext: '※ 登録されたクライアント資料（頭脳）がありません。一般的な解説として執筆し、具体的情報は[要確認]としてください。',
+      formattedContext: '',
       usedKnowledgeIds: [],
       chunks: [],
     };
@@ -86,7 +86,7 @@ export function buildRagContext(
   const allChunks: RetrievedChunk[] = [];
 
   for (const item of knowledges) {
-    const textChunks = chunkText(item.content, 600, 100);
+    const textChunks = chunkText(item.content, 800, 150);
 
     for (const chunk of textChunks) {
       const score = calculateRelevance(chunk + ' ' + item.title + ' ' + item.tags.join(' '), searchTerms);
@@ -101,16 +101,13 @@ export function buildRagContext(
     }
   }
 
-  // スコア順にソート（スコアが同じ場合はタイトルの関連性や元の順序を維持）
   allChunks.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-  // 上位チャンクを選択
   const selectedChunks = allChunks.slice(0, maxChunks);
-  const usedKnowledgeIds = Array.from(new Set(selectedChunks.map(c => c.knowledgeId)));
+  const usedKnowledgeIds = Array.from(new Set(selectedChunks.map((c) => c.knowledgeId)));
 
-  // プロンプト用コンテキストをフォーマット
   const formattedSections = selectedChunks.map((c, index) => {
-    return `【資料${index + 1}: ${c.title} (${c.sourceType}${c.sourceUrl ? ` - ${c.sourceUrl}` : ''})】\n${c.text.trim()}`;
+    return `【資料${index + 1}: ${c.title}】\n${c.text.trim()}`;
   });
 
   const formattedContext = formattedSections.join('\n\n');
