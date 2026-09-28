@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { FactCheckIssue, FactCheckResult, KnowledgeItem, PromptType } from '@/types';
 import { resolveBestModel } from './claude';
+import { searchTavily } from './tavily';
 
 // 薬機法・医療広告ガイドラインで問題視されやすいNGパターン一覧
 const MEDICAL_LAW_RISK_PATTERNS = [
@@ -67,14 +68,14 @@ export async function runFactCheck(
     }
   }
 
-  // 3. LLMを用いたディープファクトチェック（APIキーがある場合）
+  // 3. LLM ＋ Web検索（Tavily）を用いたディープファクトチェック
   const effectiveApiKey = apiKey || process.env.ANTHROPIC_API_KEY;
-  if (effectiveApiKey && combinedKnowledgeText.length > 50) {
+  if (effectiveApiKey && content.length > 100) {
     try {
-      const llmIssues = await runLlmFactCheck(content, combinedKnowledgeText, promptType, effectiveApiKey);
-      issues.push(...llmIssues);
+      const deepIssues = await runDeepWebFactCheck(content, combinedKnowledgeText, promptType, effectiveApiKey);
+      issues.push(...deepIssues);
     } catch (e) {
-      console.warn('LLM Fact check fallback to rule-based:', e);
+      console.warn('Deep web fact check fallback:', e);
     }
   }
 
@@ -89,13 +90,13 @@ export async function runFactCheck(
 
   let summary = '';
   if (issues.length === 0) {
-    summary = 'ファクトチェック合格: 文献・事実データとの不整合や誇大表現のリスクは見つかりませんでした。';
+    summary = 'ファクトチェック合格: 文献・事実データおよびWeb情報との不整合は見つかりませんでした。';
   } else {
     const highCount = issues.filter((i) => i.severity === 'high').length;
     if (highCount > 0) {
-      summary = `重大な注意点が${highCount}件検出されました。公開前に該当箇所の修正を推奨します。`;
+      summary = `重大な注意点が${highCount}件検出されました。公開前に該当箇所の確認を推奨します。`;
     } else {
-      summary = `${issues.length}件の確認推奨事項があります。表現をご確認ください。`;
+      summary = `${issues.length}件の確認推奨事項（Web裏付け・注意点）があります。`;
     }
   }
 
@@ -109,7 +110,10 @@ export async function runFactCheck(
   };
 }
 
-async function runLlmFactCheck(
+/**
+ * Claude ＋ Tavily Web検索によるディープファクトチェック
+ */
+async function runDeepWebFactCheck(
   content: string,
   knowledgeText: string,
   promptType: PromptType,
@@ -118,72 +122,101 @@ async function runLlmFactCheck(
   const selectedModel = await resolveBestModel(apiKey);
   const anthropic = new Anthropic({ apiKey });
 
-  const prompt = `以下の【元資料（文献要約集）】と【生成されたブログ記事】を照合し、ハルシネーション（元資料に根拠がない架空の創作・数値捏造）や、医療系リスク（誇大広告、薬機法違反リスク）をチェックしてください。
+  // 1. 記事からWeb検索で裏付け調査すべき主張・統計・法律キーワードを抽出
+  const extractPrompt = `以下のブログ記事から、公的統計、法律・制度、業界データ、医学的事実など「Web上の公的・最新データで裏付け調査すべき重要事項」を1〜2個抽出し、Web検索用クエリ（日本語）を作成してください。
 
-【元資料（文献要約集）】
-${knowledgeText.slice(0, 5000)}
+【ブログ記事抜粋】
+${content.slice(0, 3000)}
 
-【ブログ記事】
-${content.slice(0, 5000)}
+出力は以下のJSONのみ：
+{
+  "queries": ["検索クエリ1", "検索クエリ2"]
+}`;
 
-【モード】: ${promptType === 'medical' ? '医療系（薬機法・医療広告ガイドライン適用）' : '普通（365ブログ・一般企業）'}
+  let queries: string[] = [];
+  try {
+    const queryResp = await anthropic.messages.create({
+      model: selectedModel,
+      max_tokens: 300,
+      temperature: 0.1,
+      messages: [{ role: 'user', content: extractPrompt }],
+    });
+    const qText = queryResp.content.filter((b) => b.type === 'text').map((b) => (b as any).text).join('\n');
+    const qJson = qText.match(/\{[\s\S]*\}/);
+    if (qJson) {
+      const parsed = JSON.parse(qJson[0]);
+      queries = (parsed.queries || []).slice(0, 2);
+    }
+  } catch (err) {
+    console.warn('Failed to extract search queries:', err);
+  }
+
+  // 2. Tavily Web検索を実行
+  let webSearchResultsText = '';
+  let topResultUrl = '';
+  let topResultTitle = '';
+
+  for (const q of queries) {
+    const results = await searchTavily(q);
+    if (results.length > 0) {
+      if (!topResultUrl) {
+        topResultUrl = results[0].url;
+        topResultTitle = results[0].title;
+      }
+      webSearchResultsText += `【Web検索クエリ: ${q}】\n` + results.map((r) => `- [${r.title}](${r.url}): ${r.content}`).join('\n') + '\n\n';
+    }
+  }
+
+  // 3. 記事、元資料、Web検索結果を突き合わせて検証
+  const verifyPrompt = `以下の【元資料（文献・ヒアリング）】、【Web検索による最新公的データ】、【生成されたブログ記事】を照合し、ハルシネーション（元資料に根拠がない架空創作）、最新公的データとの齟齬、医療系リスクをチェックしてください。
+
+【元資料（文献・ヒアリング）】
+${knowledgeText.slice(0, 3000)}
+
+【Web検索による最新公的データ】
+${webSearchResultsText ? webSearchResultsText.slice(0, 3000) : '（Web検索結果なし）'}
+
+【生成されたブログ記事】
+${content.slice(0, 4000)}
 
 以下のJSONフォーマットのみを出力してください。問題がなければ空配列 [] を返してください。
 [
   {
-    "type": "hallucination_suspect" または "medical_law_risk" または "unsupported_claim",
+    "type": "web_grounding_info" または "hallucination_suspect" または "medical_law_risk",
     "severity": "high" または "medium" または "low",
-    "highlightText": "問題のある記事中の短い抜粋テキスト",
-    "reason": "なぜ問題なのか（資料にない創作、誇大表現など）",
-    "suggestion": "どう修正すべきかの提案"
+    "highlightText": "問題または裏付け対象の記事中の短い抜粋テキスト",
+    "reason": "なぜ問題なのか、またはWebデータとの照合結果",
+    "suggestion": "どう修正・確認すべきかの提案",
+    "sourceTitle": "関連するWebソースのタイトル（存在する場合）",
+    "sourceUrl": "関連するWebソースのURL（存在する場合）"
   }
 ]`;
 
-  const candidateModels = [
-    selectedModel,
-    'claude-sonnet-5',
-    'claude-opus-5',
-    'claude-haiku-4-5',
-    'claude-3-7-sonnet-latest',
-    'claude-3-5-sonnet-latest',
-    'claude-3-haiku-20240307',
-  ];
-
-  let text = '';
-  for (const model of Array.from(new Set(candidateModels))) {
-    try {
-      const response = await anthropic.messages.create({
-        model,
-        max_tokens: 1500,
-        temperature: 0.1,
-        messages: [{ role: 'user', content: prompt }],
-      });
-
-      text = response.content
-        .filter((b) => b.type === 'text')
-        .map((b) => (b as any).text)
-        .join('\n');
-      if (text) break;
-    } catch {
-      continue;
-    }
-  }
-
   try {
+    const resp = await anthropic.messages.create({
+      model: selectedModel,
+      max_tokens: 1500,
+      temperature: 0.1,
+      messages: [{ role: 'user', content: verifyPrompt }],
+    });
+
+    const text = resp.content.filter((b) => b.type === 'text').map((b) => (b as any).text).join('\n');
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       return parsed.map((item: any) => ({
-        id: `llm-${Math.random().toString(36).slice(2, 9)}`,
-        type: item.type || 'hallucination_suspect',
-        severity: item.severity || 'medium',
+        id: `web-${Math.random().toString(36).slice(2, 9)}`,
+        type: item.type || 'web_grounding_info',
+        severity: item.severity || 'low',
         highlightText: item.highlightText || '',
         reason: item.reason || '',
         suggestion: item.suggestion || '',
+        sourceTitle: item.sourceTitle || topResultTitle || undefined,
+        sourceUrl: item.sourceUrl || topResultUrl || undefined,
       }));
     }
   } catch (err) {
-    console.error('Failed to parse LLM fact check output:', err);
+    console.error('Failed to run deep verification:', err);
   }
 
   return [];

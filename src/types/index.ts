@@ -65,12 +65,14 @@ export interface KeywordHistoryItem {
 
 export interface FactCheckIssue {
   id: string;
-  type: 'hallucination_suspect' | 'medical_law_risk' | 'unsupported_claim' | 'missing_evidence';
+  type: 'hallucination_suspect' | 'medical_law_risk' | 'unsupported_claim' | 'missing_evidence' | 'web_grounding_info';
   severity: 'high' | 'medium' | 'low';
   highlightText: string;
   reason: string;
   suggestion?: string;
   matchedKnowledgeSource?: string;
+  sourceTitle?: string; // Web根拠ソースのタイトル
+  sourceUrl?: string;   // Web根拠ソースのURL
 }
 
 export interface FactCheckResult {

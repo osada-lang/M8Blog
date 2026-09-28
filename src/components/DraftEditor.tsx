@@ -11,7 +11,9 @@ import {
   Download, 
   FileEdit, 
   Eye, 
-  BookOpen
+  BookOpen,
+  ExternalLink,
+  Globe
 } from 'lucide-react';
 
 interface DraftEditorProps {
@@ -150,7 +152,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     const line = rawLines[i];
     const trimmed = line.trim();
 
-    // 1. CTAブロック自動検知
     if (trimmed.includes('この記事のテーマを') && trimmed.includes('整理したい方へ')) {
       if (inBlockquote) flushBlockquote(`quote-${i}`);
       if (inTable) flushTable(`table-${i}`);
@@ -172,7 +173,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // 2. 引用ブロック
     if (trimmed.startsWith('>')) {
       if (inTable) flushTable(`table-${i}`);
       blockquoteLines.push(trimmed.replace(/^>\s*/, ''));
@@ -183,7 +183,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       flushBlockquote(`quote-${i}`);
     }
 
-    // 3. テーブル
     if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
       const cols = trimmed.split('|').slice(1, -1).map((c) => c.trim());
       if (cols.every((c) => /^[-:\s]+$/.test(c))) {
@@ -208,7 +207,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // H1 見出し（実物通りの明朝体・下線スタイル）
     if (trimmed.startsWith('# ')) {
       renderedElements.push(
         <h1 key={i} className="text-2xl sm:text-3xl font-normal text-[#1d1d1f] tracking-tight leading-tight mt-6 mb-8 pb-4 border-b-2 border-[#1d1d1f]">
@@ -219,7 +217,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // H2 見出し
     if (trimmed.startsWith('## ')) {
       renderedElements.push(
         <h2 key={i} className="text-xl sm:text-2xl font-normal text-[#1d1d1f] tracking-tight mt-12 mb-5 pl-4 border-l-4 border-[#c5a880]">
@@ -230,7 +227,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // H3 見出し
     if (trimmed.startsWith('### ')) {
       renderedElements.push(
         <h3 key={i} className="text-lg sm:text-xl font-medium text-[#1d1d1f] mt-8 mb-3">
@@ -241,14 +237,12 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // 水平線
     if (/^[-*_]{3,}$/.test(trimmed)) {
       renderedElements.push(<hr key={i} className="my-8 border-t border-[#e5e5ea]" />);
       i++;
       continue;
     }
 
-    // 箇条書きリスト
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       renderedElements.push(
         <li key={i} className="ml-6 list-disc text-sm sm:text-base text-[#333] leading-loose my-2 font-serif">
@@ -259,7 +253,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // 通常段落（実物ブログと同じ上品な明朝体・ゆったりした行間）
     renderedElements.push(
       <p key={i} className="text-sm sm:text-base text-[#2c2c2e] leading-loose my-5 font-serif tracking-normal" dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }} />
     );
@@ -396,7 +389,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
         )}
       </div>
 
-      {/* メインコンテンツ（実物記事と同じフル幅レイアウト） */}
+      {/* メインコンテンツ */}
       <div className="space-y-6">
         {/* 切り替えバー ＆ 正確な純テキスト文字数表示 */}
         <div className="flex items-center justify-between apple-card px-4 py-2.5">
@@ -429,7 +422,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           </div>
         </div>
 
-        {/* 本文エリア（実物と同じフル幅 ＆ 上品な明朝体） */}
+        {/* 本文エリア */}
         {viewMode === 'preview' ? (
           <div className="apple-card p-6 sm:p-12 text-[#1d1d1f] bg-white shadow-sm border border-[#e5e5ea]">
             <RichBlogRenderer markdown={draft.contentMarkdown} />
@@ -469,15 +462,15 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           </div>
         </div>
 
-        {/* 検証結果詳細 ＆ 参照文献（本文の下にワイド配置） */}
+        {/* 検証結果詳細 ＆ 参照文献（Web裏付けソースURL表示対応） */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2">
-          {/* 左側: ファクトチェック指摘事項 */}
+          {/* 左側: ファクトチェック指摘 ＆ Web裏付けソース */}
           <div className="md:col-span-8 apple-card p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-[#1d1d1f] flex items-center space-x-1.5">
+              <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-4 h-4 text-[#0066cc]" />
-                <span>ファクトチェック検証詳細</span>
-              </h3>
+                <h3 className="text-sm font-semibold text-[#1d1d1f]">ファクトチェック ＆ Web裏付け検証詳細</h3>
+              </div>
               {onRecheckFact && (
                 <button
                   onClick={onRecheckFact}
@@ -494,15 +487,15 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                 <Check className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
                 <p className="text-xs font-semibold text-emerald-800">リスク表現は検出されませんでした</p>
                 <p className="text-[11px] text-emerald-700 mt-0.5">
-                  元文献データに忠実で、創作・誇大広告の懸念はありません。
+                  社内文献データおよびWeb公的情報と整合しています。
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+              <div className="space-y-3.5 max-h-[440px] overflow-y-auto pr-1">
                 {factCheck.issues.map((issue) => (
                   <div
                     key={issue.id}
-                    className={`p-3.5 rounded-xl border text-xs space-y-2 ${
+                    className={`p-3.5 sm:p-4 rounded-xl border text-xs space-y-2.5 ${
                       issue.severity === 'high'
                         ? 'bg-rose-50 border-rose-200 text-rose-900'
                         : issue.severity === 'medium'
@@ -512,15 +505,17 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                   >
                     <div className="flex items-center justify-between">
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
                           issue.severity === 'high'
-                            ? 'bg-rose-100 text-rose-800'
+                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
                             : issue.severity === 'medium'
-                            ? 'bg-amber-100 text-amber-800'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
                             : 'bg-white text-[#1d1d1f] border border-[#e5e5ea]'
                         }`}
                       >
-                        {issue.type === 'medical_law_risk'
+                        {issue.type === 'web_grounding_info'
+                          ? '🌐 Web公的データ裏付け'
+                          : issue.type === 'medical_law_risk'
                           ? '🏥 薬機法/医療広告'
                           : issue.type === 'hallucination_suspect'
                           ? '⚠️ ハルシネーション'
@@ -531,9 +526,11 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                       </span>
                     </div>
 
-                    <div className="font-mono text-xs bg-white p-2.5 rounded-lg border border-[#e5e5ea]">
-                      &quot;{issue.highlightText}&quot;
-                    </div>
+                    {issue.highlightText && (
+                      <div className="font-mono text-xs bg-white p-2.5 rounded-lg border border-[#e5e5ea]">
+                        &quot;{issue.highlightText}&quot;
+                      </div>
+                    )}
 
                     <p className="text-[11px] leading-relaxed">
                       {issue.reason}
@@ -543,6 +540,23 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                       <div className="text-[11px] text-[#0066cc] bg-blue-50 p-2.5 rounded-lg border border-blue-100">
                         <span className="font-semibold block mb-0.5">💡 修正アドバイス:</span>
                         {issue.suggestion}
+                      </div>
+                    )}
+
+                    {/* 🔗 クリック可能な根拠ソースURL */}
+                    {issue.sourceUrl && (
+                      <div className="pt-1 flex items-center space-x-1 text-[11px]">
+                        <Globe className="w-3.5 h-3.5 text-[#0066cc] shrink-0" />
+                        <span className="text-[#86868b]">根拠ソース:</span>
+                        <a
+                          href={issue.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#0066cc] hover:underline font-medium flex items-center space-x-0.5 truncate"
+                        >
+                          <span className="truncate">{issue.sourceTitle || issue.sourceUrl}</span>
+                          <ExternalLink className="w-2.5 h-2.5 shrink-0 ml-0.5" />
+                        </a>
                       </div>
                     )}
                   </div>
