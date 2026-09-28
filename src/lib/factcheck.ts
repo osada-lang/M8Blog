@@ -62,20 +62,20 @@ export async function runFactCheck(
         type: 'unsupported_claim',
         severity: 'low',
         highlightText: match,
-        reason: '元ナレッジに情報が不足しているため、公開前に店舗側での確認・追記が必要です。',
-        suggestion: '公式サイトや最新の料金表・メニューを確認して正確な数値を入力してください。',
+        reason: '元資料に情報が不足しているため、公開前に店舗側での確認・追記が必要です。',
+        suggestion: '最新の情報をご確認のうえ、正確な数値を入力してください。',
       });
     }
   }
 
-  // 3. 全方位Webファクトチェック（パターンA: 統計・法律・公的データ・固有名詞・営業状態を上限なしで網羅検証）
+  // 3. パターンB: 資料外検知モード（社内参考資料に書かれていない新しい補完・創作事項のみを検出し、Webで真偽調査）
   const effectiveApiKey = apiKey || process.env.ANTHROPIC_API_KEY;
   if (effectiveApiKey && content.length > 100) {
     try {
-      const deepIssues = await runComprehensiveWebFactCheck(content, combinedKnowledgeText, promptType, effectiveApiKey);
-      issues.push(...deepIssues);
+      const outsideIssues = await runPatternBOutsideFactCheck(content, combinedKnowledgeText, promptType, effectiveApiKey);
+      issues.push(...outsideIssues);
     } catch (e) {
-      console.warn('Comprehensive web fact check exception:', e);
+      console.warn('Pattern B outside fact check exception:', e);
     }
   }
 
@@ -90,17 +90,19 @@ export async function runFactCheck(
   }
   const score = Math.max(0, Math.min(100, 100 - penalty));
 
-  const webCheckedCount = issues.filter((i) => i.type === 'web_grounding_info').length;
+  const outsideCheckedCount = issues.filter((i) => i.type === 'web_grounding_info').length;
   const criticalCount = issues.filter((i) => i.severity === 'high').length;
   const riskCount = issues.filter((i) => i.type !== 'web_grounding_info').length;
 
   let summary = '';
   if (criticalCount > 0) {
-    summary = `🚨 重大な事実確認リスクが ${criticalCount}件 検出されました。公開前に必ず修正してください。`;
+    summary = `🚨 重大な事実確認リスク（資料外の虚偽・ハルシネーション疑い）が ${criticalCount}件 検出されました。公開前に必ず修正してください。`;
   } else if (riskCount > 0) {
-    summary = `Web公的データ裏付け調査 ${webCheckedCount}件 を完了。確認推奨事項が ${riskCount}件 あります。`;
+    summary = `確認推奨事項が ${riskCount}件 あります（社内資料外の補完事項: ${outsideCheckedCount}件）。`;
+  } else if (outsideCheckedCount > 0) {
+    summary = `社内資料外の記述 ${outsideCheckedCount}件 を検出し、Web公的データで裏付け調査を実施して整合性を確認しました。`;
   } else {
-    summary = `ファクトチェック完了: 記事内の重要事実・統計・法律・データ ${webCheckedCount}件 をWeb公的情報と照合し、整合性を確認しました。`;
+    summary = `ファクトチェック合格: すべて社内参考資料に準拠して執筆されており、資料外の未確認事項やハルシネーションは検出されませんでした。`;
   }
 
   return {
@@ -114,9 +116,10 @@ export async function runFactCheck(
 }
 
 /**
- * 統計数値・公的制度・固有名詞・営業状態・医学根拠を網羅検証するディープWebファクトチェック（上限なし）
+ * パターンB（資料外検知モード）：
+ * 記事全文と社内参考資料を照合し、参考資料に記載が【ない】事項（AIが独自に付け足した他社名、商業施設、統計、制度など）のみを抽出してWeb検索で真偽調査する
  */
-async function runComprehensiveWebFactCheck(
+async function runPatternBOutsideFactCheck(
   content: string,
   knowledgeText: string,
   promptType: PromptType,
@@ -125,37 +128,36 @@ async function runComprehensiveWebFactCheck(
   const selectedModel = await resolveBestModel(apiKey);
   const anthropic = new Anthropic({ apiKey });
 
-  // 1. 記事全文から「事実の主張（統計数値、法律、公的調査、固有名詞、医学データ）」を上限なしで網羅抽出
+  // 1. 参考資料に記載が【ない】新しい事実的主張のみを抽出
   const extractPrompt = `あなたは厳格な事実調査・ファクトチェッカーです。
-以下のブログ記事全体から、Web上の公的データ・信頼できる情報源で裏付け確認を行うべき【具体的なファクト・数値・法律・公的データ・固有名詞】を【すべて網羅して（上限なしで）】抽出してください。
+以下の【社内参考資料（文献・ヒアリング）】と【生成されたブログ記事】を照合し、ブログ記事の中で【社内参考資料に直接書かれていない、AIが独自に補完・追加した客観的事実（実在する他社名・商業施設・店舗、資料外の統計数値、資料外の法律・制度）】を抽出してください。
 
-【抽出対象】
-1. 📊 【具体的な統計・調査数値】（例: 「愛知県の総住宅数は366万4,700戸」「持ち家率は59.6％」「空き家は43万3,000戸」「住宅ローン金利上昇予想62.0%」など）
-2. ⚖️ 【法律・公的制度・法改正】（例: 「2025年4月1日施行 建築基準法改正」「新2号建築物」「1981年新耐震基準」「2000年耐震性能検証法」など）
-3. 🏢 【実在する固有名詞・商業施設・他社・店舗・人物】（例: イオン、競合他社、施設名、公的機関名など）
-4. 🩺 【医学的根拠・ガイドライン・症例データ】（医療系・採用系・通常系の具体的データ）
+【重要ルール】
+・【社内参考資料】に既に書かれている事実や統計数値（例: 資料に記載のある愛知県の住宅数や金利データなど）は【抽出不要（除外）】です。
+・【社内参考資料】に記載が全くないにもかかわらず、記事内で具体的に断定・言及されている事項（例: 実在する施設名「〇〇のイオン」の営業状態、資料外の数値など）のみを抽出してください。
+・資料外の事項がなければ空配列 [] を返してください。
 
-【絶対禁止事項】
-❌ タイトルや導入文の一般的な感想・比喩表現（例: 「築30年だから建て替え」「思い込み」等）は除外してください。
+【社内参考資料（文献・ヒアリング）】
+${knowledgeText.slice(0, 6000)}
 
 【ブログ記事全文】
 ${content.slice(0, 7000)}
 
 出力フォーマット（JSONのみ）：
 {
-  "claims": [
+  "outsideClaims": [
     {
-      "highlightText": "記事中の具体的な数値や法律を含む文（例: 愛知県の総住宅数は366万4,700戸、持ち家率は59.6％）",
-      "searchQuery": "公的データ裏付け用のWeb検索キーワード（例: 愛知県 住宅土地統計調査 住宅数 持ち家率）"
+      "highlightText": "社内参考資料に記載がなかった記事中の具体的な抜粋",
+      "searchQuery": "Web検索用の具体的キーワード（例: ○○ イオン 営業状況 / ○○法律 改正）"
     }
   ]
 }`;
 
-  let claims: Array<{ highlightText: string; searchQuery: string }> = [];
+  let outsideClaims: Array<{ highlightText: string; searchQuery: string }> = [];
   try {
     const queryResp = await anthropic.messages.create({
       model: selectedModel,
-      max_tokens: 1500,
+      max_tokens: 800,
       temperature: 0.1,
       messages: [{ role: 'user', content: extractPrompt }],
     });
@@ -163,52 +165,43 @@ ${content.slice(0, 7000)}
     const qJson = qText.match(/\{[\s\S]*\}/);
     if (qJson) {
       const parsed = JSON.parse(qJson[0]);
-      claims = parsed.claims || [];
+      outsideClaims = parsed.outsideClaims || [];
     }
   } catch (err) {
-    console.warn('Failed to extract claims:', err);
+    console.warn('Failed to extract outside claims:', err);
   }
 
-  // 抽出が空の場合のフォールバック（数字や法律を含む文を自動抽出）
-  if (claims.length === 0) {
-    const sentences = content.split(/[。\n]/).map((s) => s.trim()).filter((s) => s.length > 15);
-    for (const s of sentences) {
-      if (/\d+万|\d+％|\d+年|\d+戸|建築基準法|耐震|住宅金融支援機構|厚生労働省|総務省|改正/.test(s)) {
-        claims.push({
-          highlightText: s.slice(0, 80),
-          searchQuery: s.slice(0, 40).replace(/[^\w\u3000-\u30FF\u4E00-\u9FA5]/g, ' '),
-        });
-      }
-    }
+  if (outsideClaims.length === 0) {
+    return []; // 資料外の勝手な追加がなければ0件（完全合格）
   }
 
   const results: FactCheckIssue[] = [];
 
-  // 2. 抽出された各クレームについて Web検索 ＆ 真偽判定を実行（上限なし）
-  for (const claim of claims) {
+  // 2. 資料外の項目について Tavily Web検索 ＆ 真偽判定を実行
+  for (const claim of outsideClaims) {
     if (!claim.searchQuery) continue;
 
     const searchResults = await searchTavily(claim.searchQuery);
     const topResult = searchResults[0];
 
-    const verifyPrompt = `以下の【記事中の記述】について、【Web検索結果】を照合し、事実関係の真偽を判定してください。
+    const verifyPrompt = `以下の【記事中の資料外の記述】について、【Web検索結果】を照合し、事実関係の真偽を判定してください。
 
-【記事中の記述】
+【記事中の記述（社内資料にはない情報）】
 "${claim.highlightText}"
 
 【Web検索結果】
 ${searchResults.map((r) => `- [${r.title}](${r.url}): ${r.content}`).join('\n')}
 
 【判定ルール】
-- もし実在する他社・商業施設が「閉店した」「倒産した」等と書かれており、Web情報で現在も営業中である等、虚偽・事実無根の記述である場合は "isHallucination": true, "severity": "high" とする。
-- 公的データや法律、統計調査と整合している場合は "isHallucination": false, "severity": "low" とする。
+- 実在する他社や商業施設について虚偽・事実無根の記述（例: 営業中なのに「閉店した」等）である場合は "isHallucination": true, "severity": "high" とする。
+- Web上の公的・信頼できる情報源で内容の正確性が確認できた場合は "isHallucination": false, "severity": "low" とする。
 
 出力フォーマット（JSONのみ）：
 {
   "isHallucination": true または false,
   "severity": "high" または "medium" または "low",
-  "reason": "調査結果の具体的な説明（〇〇の公的サイト/情報源と照合し、〇〇と確認できました。等）",
-  "suggestion": "修正提案（問題なければ『公的データとの整合性を確認済みです。』）",
+  "reason": "調査結果の具体的な説明（社内参考資料には記載がなかった事項ですが、Web上の公的サイト/情報源（〇〇）で調査したところ、〇〇と確認できました。等）",
+  "suggestion": "修正提案（虚偽の場合は『事実と異なるため削除・修正してください』、問題なければ『Webデータとの整合性を確認済みです。』）",
   "sourceTitle": "${topResult ? topResult.title.replace(/"/g, '') : 'Web公的データ'}",
   "sourceUrl": "${topResult ? topResult.url : ''}"
 }`;
@@ -231,7 +224,7 @@ ${searchResults.map((r) => `- [${r.title}](${r.url}): ${r.content}`).join('\n')}
           type: isHallu ? 'hallucination_suspect' : 'web_grounding_info',
           severity: isHallu ? 'high' : 'low',
           highlightText: claim.highlightText,
-          reason: parsed.reason || 'Web上の公的・信頼できる情報源と照合し、事実関係を確認しました。',
+          reason: parsed.reason || '社内参考資料には記載がなかった事項ですが、Web上の公的情報と照合し確認しました。',
           suggestion: isHallu ? (parsed.suggestion || '事実と異なる可能性があるため、記述を削除または修正してください。') : undefined,
           sourceTitle: parsed.sourceTitle || topResult?.title,
           sourceUrl: parsed.sourceUrl || topResult?.url,
@@ -244,7 +237,7 @@ ${searchResults.map((r) => `- [${r.title}](${r.url}): ${r.content}`).join('\n')}
           type: 'web_grounding_info',
           severity: 'low',
           highlightText: claim.highlightText,
-          reason: `Web上の公的・信頼できる情報源（${topResult.title}）と照合し、事実関係を確認しました。`,
+          reason: `社内参考資料には直接記載がなかった事項ですが、Web上の公的情報（${topResult.title}）と照合し、内容を確認しました。`,
           sourceTitle: topResult.title,
           sourceUrl: topResult.url,
         });
