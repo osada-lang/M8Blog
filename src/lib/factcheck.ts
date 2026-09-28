@@ -102,7 +102,7 @@ export async function runFactCheck(
   } else if (outsideCheckedCount > 0) {
     summary = `社内資料外の記述 ${outsideCheckedCount}件 を検出し、Web公的データで裏付け調査を実施して整合性を確認しました。`;
   } else {
-    summary = `ファクトチェック合格: すべて社内参考資料に準拠して執筆されており、資料外の未確認事項やハルシネーションは検出されませんでした。`;
+    summary = `参考資料以外から持ってきた情報はありませんでした（すべて社内参考資料に準拠して執筆されています）。`;
   }
 
   return {

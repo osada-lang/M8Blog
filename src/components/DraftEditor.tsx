@@ -14,7 +14,8 @@ import {
   BookOpen,
   ExternalLink,
   Globe,
-  AlertOctagon
+  AlertOctagon,
+  CheckCircle2
 } from 'lucide-react';
 
 interface DraftEditorProps {
@@ -315,7 +316,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
     if (score >= 90) {
       return {
         bg: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-        label: '極めて高精度',
+        label: '参考資料に完全準拠',
         icon: <ShieldCheck className="w-4 h-4 text-emerald-600 mr-1.5" />,
       };
     }
@@ -374,7 +375,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                 <span>ファクト信頼度: {factCheck.score}点</span>
               </div>
               <span className="text-xs text-[#86868b]">
-                （調査・指摘: {factCheck.totalIssues}件）
+                （資料外・指摘: {factCheck.totalIssues}件）
               </span>
             </div>
             <p className="text-xs text-[#86868b]">
@@ -457,7 +458,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           </div>
         </div>
 
-        {/* 検証結果詳細 ＆ 参照文献（全方位ファクトチェック・ハルシネーション検知対応） */}
+        {/* 検証結果詳細 ＆ 参照文献 */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2">
           {/* 左側: ファクトチェック指摘 ＆ Web裏付けソースレポート */}
           <div className="md:col-span-8 apple-card p-5 sm:p-6 space-y-4">
@@ -478,11 +479,14 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
             </div>
 
             {(!factCheck || factCheck.issues.length === 0) ? (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
-                <Check className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
-                <p className="text-xs font-semibold text-emerald-800">リスク表現は検出されませんでした</p>
-                <p className="text-[11px] text-emerald-700 mt-0.5">
-                  社内文献データおよびWeb公的情報と整合しています。
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center space-y-1">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
+                <p className="text-xs font-bold text-emerald-900">
+                  参考資料以外から持ってきた情報はありませんでした
+                </p>
+                <p className="text-[11px] text-emerald-700 leading-relaxed">
+                  すべて社内の参考資料（文献要約集・ヒアリングシート）の事実に基づいて正確に執筆されています。<br />
+                  （※参考資料にない記述が検出された場合のみ、Web検索によるファクトチェックが自動実行されます）
                 </p>
               </div>
             ) : (
@@ -519,7 +523,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                               : issue.type === 'medical_law_risk'
                               ? '🏥 薬機法/医療広告リスク'
                               : issue.type === 'web_grounding_info'
-                              ? '🌐 Web裏付け調査（統計・法律・事実）'
+                              ? '🌐 資料外のWeb裏付け調査'
                               : '📝 要確認事項'}
                           </span>
                         </span>
