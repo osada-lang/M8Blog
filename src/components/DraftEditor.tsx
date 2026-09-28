@@ -379,7 +379,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                 <span>ファクト信頼度: {factCheck.score}点</span>
               </div>
               <span className="text-xs text-[#86868b]">
-                （指摘: {factCheck.totalIssues}件）
+                （調査・指摘: {factCheck.totalIssues}件）
               </span>
             </div>
             <p className="text-xs text-[#86868b]">
@@ -462,14 +462,14 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           </div>
         </div>
 
-        {/* 検証結果詳細 ＆ 参照文献（Web裏付けソースURL表示対応） */}
+        {/* 検証結果詳細 ＆ 参照文献（Web裏付け調査レポート対応） */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2">
-          {/* 左側: ファクトチェック指摘 ＆ Web裏付けソース */}
+          {/* 左側: ファクトチェック指摘 ＆ Web裏付けソースレポート */}
           <div className="md:col-span-8 apple-card p-5 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-[#e5e5ea] pb-3">
               <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-4 h-4 text-[#0066cc]" />
-                <h3 className="text-sm font-semibold text-[#1d1d1f]">ファクトチェック ＆ Web裏付け検証詳細</h3>
+                <h3 className="text-sm font-semibold text-[#1d1d1f]">ファクトチェック ＆ Web裏付け調査レポート</h3>
               </div>
               {onRecheckFact && (
                 <button
@@ -482,7 +482,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
               )}
             </div>
 
-            {!factCheck || factCheck.issues.length === 0 ? (
+            {(!factCheck || factCheck.issues.length === 0) ? (
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
                 <Check className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
                 <p className="text-xs font-semibold text-emerald-800">リスク表現は検出されませんでした</p>
@@ -491,11 +491,11 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="space-y-3.5 max-h-[440px] overflow-y-auto pr-1">
+              <div className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1">
                 {factCheck.issues.map((issue) => (
                   <div
                     key={issue.id}
-                    className={`p-3.5 sm:p-4 rounded-xl border text-xs space-y-2.5 ${
+                    className={`p-4 rounded-xl border text-xs space-y-2.5 ${
                       issue.severity === 'high'
                         ? 'bg-rose-50 border-rose-200 text-rose-900'
                         : issue.severity === 'medium'
@@ -506,37 +506,45 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                     <div className="flex items-center justify-between">
                       <span
                         className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
-                          issue.severity === 'high'
+                          issue.type === 'web_grounding_info'
+                            ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                            : issue.type === 'medical_law_risk'
                             ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                            : issue.severity === 'medium'
+                            : issue.type === 'hallucination_suspect'
                             ? 'bg-amber-100 text-amber-800 border border-amber-200'
                             : 'bg-white text-[#1d1d1f] border border-[#e5e5ea]'
                         }`}
                       >
                         {issue.type === 'web_grounding_info'
-                          ? '🌐 Web公的データ裏付け'
+                          ? '🌐 Web裏付け調査（資料外補完事項）'
                           : issue.type === 'medical_law_risk'
                           ? '🏥 薬機法/医療広告'
                           : issue.type === 'hallucination_suspect'
-                          ? '⚠️ ハルシネーション'
+                          ? '⚠️ ハルシネーションの疑い'
                           : '📝 要確認事項'}
                       </span>
                       <span className="text-[10px] text-[#86868b]">
-                        {issue.severity === 'high' ? '重大' : issue.severity === 'medium' ? '警告' : '確認'}
+                        {issue.severity === 'high' ? '重大' : issue.severity === 'medium' ? '警告' : '確認済み'}
                       </span>
                     </div>
 
                     {issue.highlightText && (
-                      <div className="font-mono text-xs bg-white p-2.5 rounded-lg border border-[#e5e5ea]">
-                        &quot;{issue.highlightText}&quot;
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-[#86868b] block">📌 記事中の該当記述:</span>
+                        <div className="font-mono text-xs bg-white p-2.5 rounded-lg border border-[#e5e5ea]">
+                          &quot;{issue.highlightText}&quot;
+                        </div>
                       </div>
                     )}
 
-                    <p className="text-[11px] leading-relaxed">
-                      {issue.reason}
-                    </p>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[#1d1d1f] block">💡 ファクトチェック調査結果:</span>
+                      <p className="text-[11px] leading-relaxed text-[#515154] bg-white/70 p-2.5 rounded-lg border border-[#e5e5ea]">
+                        {issue.reason}
+                      </p>
+                    </div>
 
-                    {issue.suggestion && (
+                    {issue.suggestion && issue.type !== 'web_grounding_info' && (
                       <div className="text-[11px] text-[#0066cc] bg-blue-50 p-2.5 rounded-lg border border-blue-100">
                         <span className="font-semibold block mb-0.5">💡 修正アドバイス:</span>
                         {issue.suggestion}
@@ -545,9 +553,9 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
 
                     {/* 🔗 クリック可能な根拠ソースURL */}
                     {issue.sourceUrl && (
-                      <div className="pt-1 flex items-center space-x-1 text-[11px]">
+                      <div className="pt-1 flex items-center space-x-1.5 text-[11px] bg-white p-2 rounded-lg border border-[#e5e5ea]">
                         <Globe className="w-3.5 h-3.5 text-[#0066cc] shrink-0" />
-                        <span className="text-[#86868b]">根拠ソース:</span>
+                        <span className="font-semibold text-[#1d1d1f] shrink-0">根拠ソース:</span>
                         <a
                           href={issue.sourceUrl}
                           target="_blank"
