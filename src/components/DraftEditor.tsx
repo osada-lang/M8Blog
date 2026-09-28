@@ -13,7 +13,8 @@ import {
   Eye, 
   BookOpen,
   ExternalLink,
-  Globe
+  Globe,
+  AlertOctagon
 } from 'lucide-react';
 
 interface DraftEditorProps {
@@ -24,9 +25,6 @@ interface DraftEditorProps {
   isRechecking?: boolean;
 }
 
-/**
- * Markdown記号や改行・空白を除去して「純粋な本文の日本語文字数」をカウントする関数
- */
 function countPlainTextCharacters(markdown: string): number {
   if (!markdown) return 0;
 
@@ -49,9 +47,6 @@ function countPlainTextCharacters(markdown: string): number {
   return plainText.length;
 }
 
-/**
- * 実物の公開Webサイトと同じ上品な明朝体・行間で描画するリッチプレビューコンポーネント
- */
 const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
   const rawLines = markdown.split('\n');
   const renderedElements: React.ReactNode[] = [];
@@ -462,7 +457,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
           </div>
         </div>
 
-        {/* 検証結果詳細 ＆ 参照文献（Web裏付け調査レポート対応） */}
+        {/* 検証結果詳細 ＆ 参照文献（全方位ファクトチェック・ハルシネーション検知対応） */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2">
           {/* 左側: ファクトチェック指摘 ＆ Web裏付けソースレポート */}
           <div className="md:col-span-8 apple-card p-5 sm:p-6 space-y-4">
@@ -491,84 +486,102 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="space-y-3.5 max-h-[460px] overflow-y-auto pr-1">
-                {factCheck.issues.map((issue) => (
-                  <div
-                    key={issue.id}
-                    className={`p-4 rounded-xl border text-xs space-y-2.5 ${
-                      issue.severity === 'high'
-                        ? 'bg-rose-50 border-rose-200 text-rose-900'
-                        : issue.severity === 'medium'
-                        ? 'bg-amber-50 border-amber-200 text-amber-900'
-                        : 'bg-[#f5f5f7] border-[#e5e5ea] text-[#1d1d1f]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
-                          issue.type === 'web_grounding_info'
-                            ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                            : issue.type === 'medical_law_risk'
-                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                            : issue.type === 'hallucination_suspect'
-                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                            : 'bg-white text-[#1d1d1f] border border-[#e5e5ea]'
-                        }`}
-                      >
-                        {issue.type === 'web_grounding_info'
-                          ? '🌐 Web裏付け調査（資料外補完事項）'
-                          : issue.type === 'medical_law_risk'
-                          ? '🏥 薬機法/医療広告'
-                          : issue.type === 'hallucination_suspect'
-                          ? '⚠️ ハルシネーションの疑い'
-                          : '📝 要確認事項'}
-                      </span>
-                      <span className="text-[10px] text-[#86868b]">
-                        {issue.severity === 'high' ? '重大' : issue.severity === 'medium' ? '警告' : '確認済み'}
-                      </span>
-                    </div>
+              <div className="space-y-3.5 max-h-[480px] overflow-y-auto pr-1">
+                {factCheck.issues.map((issue) => {
+                  const isCritical = issue.severity === 'high' || issue.type === 'hallucination_suspect';
+                  const isWarning = issue.severity === 'medium';
 
-                    {issue.highlightText && (
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-[#86868b] block">📌 記事中の該当記述:</span>
-                        <div className="font-mono text-xs bg-white p-2.5 rounded-lg border border-[#e5e5ea]">
-                          &quot;{issue.highlightText}&quot;
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-[#1d1d1f] block">💡 ファクトチェック調査結果:</span>
-                      <p className="text-[11px] leading-relaxed text-[#515154] bg-white/70 p-2.5 rounded-lg border border-[#e5e5ea]">
-                        {issue.reason}
-                      </p>
-                    </div>
-
-                    {issue.suggestion && issue.type !== 'web_grounding_info' && (
-                      <div className="text-[11px] text-[#0066cc] bg-blue-50 p-2.5 rounded-lg border border-blue-100">
-                        <span className="font-semibold block mb-0.5">💡 修正アドバイス:</span>
-                        {issue.suggestion}
-                      </div>
-                    )}
-
-                    {/* 🔗 クリック可能な根拠ソースURL */}
-                    {issue.sourceUrl && (
-                      <div className="pt-1 flex items-center space-x-1.5 text-[11px] bg-white p-2 rounded-lg border border-[#e5e5ea]">
-                        <Globe className="w-3.5 h-3.5 text-[#0066cc] shrink-0" />
-                        <span className="font-semibold text-[#1d1d1f] shrink-0">根拠ソース:</span>
-                        <a
-                          href={issue.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#0066cc] hover:underline font-medium flex items-center space-x-0.5 truncate"
+                  return (
+                    <div
+                      key={issue.id}
+                      className={`p-4 rounded-xl border text-xs space-y-2.5 ${
+                        isCritical
+                          ? 'bg-rose-50 border-rose-300 text-rose-950 ring-1 ring-rose-400/30'
+                          : isWarning
+                          ? 'bg-amber-50 border-amber-200 text-amber-900'
+                          : 'bg-[#f5f5f7] border-[#e5e5ea] text-[#1d1d1f]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase flex items-center space-x-1 ${
+                            isCritical
+                              ? 'bg-rose-600 text-white shadow-sm'
+                              : isWarning
+                              ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                              : 'bg-blue-100 text-blue-800 border border-blue-200'
+                          }`}
                         >
-                          <span className="truncate">{issue.sourceTitle || issue.sourceUrl}</span>
-                          <ExternalLink className="w-2.5 h-2.5 shrink-0 ml-0.5" />
-                        </a>
+                          {isCritical && <AlertOctagon className="w-3 h-3 mr-1" />}
+                          <span>
+                            {isCritical
+                              ? '🚨 重大警告（ハルシネーション検知）'
+                              : issue.type === 'medical_law_risk'
+                              ? '🏥 薬機法/医療広告リスク'
+                              : issue.type === 'web_grounding_info'
+                              ? '🌐 Web裏付け調査（統計・法律・事実）'
+                              : '📝 要確認事項'}
+                          </span>
+                        </span>
+                        <span className="text-[10px] text-[#86868b] font-medium">
+                          {isCritical ? '即座に修正推奨' : isWarning ? '注意' : '確認済み'}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {issue.highlightText && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-[#86868b] block">📌 記事中の該当記述:</span>
+                          <div className={`font-mono text-xs p-2.5 rounded-lg border ${
+                            isCritical ? 'bg-white border-rose-200 text-rose-900' : 'bg-white border-[#e5e5ea]'
+                          }`}>
+                            &quot;{issue.highlightText}&quot;
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-[#1d1d1f] block">
+                          {isCritical ? '🚨 判定理由（事実無根・虚偽の疑い）:' : '💡 ファクトチェック調査結果:'}
+                        </span>
+                        <p className={`text-[11px] leading-relaxed p-2.5 rounded-lg border ${
+                          isCritical ? 'bg-white/80 border-rose-200 text-rose-900' : 'bg-white/70 border-[#e5e5ea] text-[#515154]'
+                        }`}>
+                          {issue.reason}
+                        </p>
+                      </div>
+
+                      {issue.suggestion && (
+                        <div className={`text-[11px] p-2.5 rounded-lg border ${
+                          isCritical
+                            ? 'bg-rose-100/60 border-rose-200 text-rose-900'
+                            : 'bg-blue-50 border-blue-100 text-[#0066cc]'
+                        }`}>
+                          <span className="font-semibold block mb-0.5">
+                            {isCritical ? '⚠️ 修正指示:' : '💡 修正アドバイス:'}
+                          </span>
+                          {issue.suggestion}
+                        </div>
+                      )}
+
+                      {/* 🔗 クリック可能な根拠ソースURL */}
+                      {issue.sourceUrl && (
+                        <div className="pt-1 flex items-center space-x-1.5 text-[11px] bg-white p-2 rounded-lg border border-[#e5e5ea]">
+                          <Globe className="w-3.5 h-3.5 text-[#0066cc] shrink-0" />
+                          <span className="font-semibold text-[#1d1d1f] shrink-0">根拠ソース:</span>
+                          <a
+                            href={issue.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#0066cc] hover:underline font-medium flex items-center space-x-0.5 truncate"
+                          >
+                            <span className="truncate">{issue.sourceTitle || issue.sourceUrl}</span>
+                            <ExternalLink className="w-2.5 h-2.5 shrink-0 ml-0.5" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -68,36 +68,39 @@ export async function runFactCheck(
     }
   }
 
-  // 3. LLM ＋ Web検索（Tavily）を用いた資料外事項の裏付け調査 ＆ ファクトチェック
+  // 3. 全方位ファクトチェック（統計・法律・固有名詞・営業状態・資料外事項の網羅Web検証）
   const effectiveApiKey = apiKey || process.env.ANTHROPIC_API_KEY;
   if (effectiveApiKey && content.length > 100) {
     try {
-      const deepIssues = await runDeepWebFactCheck(content, combinedKnowledgeText, promptType, effectiveApiKey);
+      const deepIssues = await runComprehensiveWebFactCheck(content, combinedKnowledgeText, promptType, effectiveApiKey);
       issues.push(...deepIssues);
     } catch (e) {
-      console.warn('Deep web fact check fallback:', e);
+      console.warn('Comprehensive web fact check exception:', e);
     }
   }
 
-  // スコアの算出（Web裏付け情報は正常確認なので減点せず、重大なリスクのみ減点）
+  // スコアの算出（Web裏付け確認済み情報は正常なので減点せず、重大なリスク・虚偽のみ減点）
   let penalty = 0;
   for (const issue of issues) {
     if (issue.type !== 'web_grounding_info') {
-      if (issue.severity === 'high') penalty += 20;
-      else if (issue.severity === 'medium') penalty += 10;
-      else if (issue.severity === 'low') penalty += 3;
+      if (issue.severity === 'high') penalty += 25;
+      else if (issue.severity === 'medium') penalty += 15;
+      else if (issue.severity === 'low') penalty += 5;
     }
   }
   const score = Math.max(0, Math.min(100, 100 - penalty));
 
   let summary = '';
   const webCheckedCount = issues.filter((i) => i.type === 'web_grounding_info').length;
+  const criticalCount = issues.filter((i) => i.severity === 'high').length;
   const riskCount = issues.filter((i) => i.type !== 'web_grounding_info').length;
 
-  if (riskCount === 0) {
-    summary = `ファクトチェック完了: 社内資料外の記述 ${webCheckedCount}件 についてWeb公的データで裏付け調査を実施し、整合性を確認しました。`;
+  if (criticalCount > 0) {
+    summary = `🚨 重大な事実確認リスクが ${criticalCount}件 検出されました。公開前に必ず修正してください。`;
+  } else if (riskCount > 0) {
+    summary = `Web裏付け調査 ${webCheckedCount}件 を実施。確認推奨事項が ${riskCount}件 あります。`;
   } else {
-    summary = `Web裏付け ${webCheckedCount}件 を確認。注意が必要な箇所が ${riskCount}件 あります。`;
+    summary = `ファクトチェック完了: 記事内の重要事実・統計・法律 ${webCheckedCount}件 についてWeb公的データで裏付け調査を実施し、整合性を確認しました。`;
   }
 
   return {
@@ -111,10 +114,9 @@ export async function runFactCheck(
 }
 
 /**
- * Claude ＋ Tavily Web検索によるディープファクトチェック
- * （社内資料にない事項を必ず抽出し、Web調査結果をソースURL付きでレポートする）
+ * 統計数値・公的制度・固有名詞・他社営業状態を網羅検証するディープWebファクトチェック
  */
-async function runDeepWebFactCheck(
+async function runComprehensiveWebFactCheck(
   content: string,
   knowledgeText: string,
   promptType: PromptType,
@@ -123,30 +125,35 @@ async function runDeepWebFactCheck(
   const selectedModel = await resolveBestModel(apiKey);
   const anthropic = new Anthropic({ apiKey });
 
-  // 1. 記事の中で「参考資料（社内文献・ヒアリング）に直接書かれていなかった補完事項（統計、法改正、業界知見）」を3〜4個抽出
-  const extractPrompt = `以下の【参考資料（社内文献・ヒアリング）】と【生成されたブログ記事】を照合し、ブログ記事の中で「参考資料に直接記載がなかった、または公的・外部データで裏付けが必要な事項（具体的な統計数値、年号・法律、業界データ、制度）」を3〜4件抽出し、Web検索クエリ（日本語）を作成してください。
+  // 1. 記事全文から「事実の主張（統計数値、法律、公的データ、固有名詞・他社・商業施設）」を必ず3〜5件抽出
+  const extractPrompt = `あなたは厳格なファクトチェッカーです。
+以下のブログ記事から、Web検索で事実確認（裏付け調査）を行うべき重要事項を【必ず3〜5件】抽出してください。
 
-【参考資料】
-${knowledgeText.slice(0, 3000)}
+【抽出対象】
+1. 統計数値・年号・調査データ（例: ○○年の調査、人口○万人、金利○％など）
+2. 法律・公的制度・基準（例: 2025年建築基準法改正、新耐震基準、職業安定法など）
+3. 実在する固有名詞・商業施設・他社・店舗（例: イオン、競合企業、施設名など）の記述
+4. 業界動向・客観的事実の主張
 
 【ブログ記事】
-${content.slice(0, 4000)}
+${content.slice(0, 4500)}
 
-出力フォーマット（JSONのみ）：
+出力フォーマット（JSONのみ、必ず3〜5件の配列）：
 {
-  "items": [
+  "claims": [
     {
-      "highlightText": "記事中の該当する短い抜粋",
-      "searchQuery": "Web検索用の具体的キーワード"
+      "highlightText": "記事中の該当する短い文・抜粋",
+      "searchQuery": "事実確認用のWeb検索キーワード（例: 建築基準法 2025年 改正 新2号建築物）",
+      "checkType": "statistic" または "law_system" または "entity_status" または "general_fact"
     }
   ]
 }`;
 
-  let extractedItems: Array<{ highlightText: string; searchQuery: string }> = [];
+  let claims: Array<{ highlightText: string; searchQuery: string; checkType: string }> = [];
   try {
     const queryResp = await anthropic.messages.create({
       model: selectedModel,
-      max_tokens: 600,
+      max_tokens: 800,
       temperature: 0.1,
       messages: [{ role: 'user', content: extractPrompt }],
     });
@@ -154,34 +161,54 @@ ${content.slice(0, 4000)}
     const qJson = qText.match(/\{[\s\S]*\}/);
     if (qJson) {
       const parsed = JSON.parse(qJson[0]);
-      extractedItems = (parsed.items || []).slice(0, 4);
+      claims = (parsed.claims || []).slice(0, 5);
     }
   } catch (err) {
-    console.warn('Failed to extract search queries:', err);
+    console.warn('Failed to extract claims:', err);
   }
 
-  // 2. 各項目について Tavily Web検索を実行し、調査結果を生成
+  // 抽出が空の場合のフォールバック（数字や法律を含む文を自動抽出）
+  if (claims.length === 0) {
+    const sentences = content.split(/[。\n]/).map((s) => s.trim()).filter((s) => s.length > 20);
+    for (const s of sentences) {
+      if (/\d+/.test(s) || /法|基準|省|調査|データ|年/.test(s)) {
+        claims.push({
+          highlightText: s.slice(0, 60),
+          searchQuery: s.slice(0, 40).replace(/[^\w\u3000-\u30FF\u4E00-\u9FA5]/g, ' '),
+          checkType: 'general_fact',
+        });
+        if (claims.length >= 3) break;
+      }
+    }
+  }
+
   const results: FactCheckIssue[] = [];
 
-  for (const item of extractedItems) {
-    if (!item.searchQuery) continue;
+  // 2. 各クレームについて Web検索 ＆ 真偽判定を実行
+  for (const claim of claims) {
+    if (!claim.searchQuery) continue;
 
-    const searchResults = await searchTavily(item.searchQuery);
+    const searchResults = await searchTavily(claim.searchQuery);
     const topResult = searchResults[0];
 
-    // Web検索結果と記事抜粋をClaudeに照合させ、具体的な調査レポート文を作成
-    const verifyPrompt = `以下の記事抜粋について、Web検索結果の信頼性を確認し、読者・管理者向けのファクトチェック調査結果文（1〜2文）を作成してください。
+    const verifyPrompt = `以下の【記事中の記述】について、【Web検索結果】を照合し、事実関係の真偽を判定してください。
 
-【記事中の抜粋】
-"${item.highlightText}"
+【記事中の記述】
+"${claim.highlightText}"
 
 【Web検索結果】
 ${searchResults.map((r) => `- [${r.title}](${r.url}): ${r.content}`).join('\n')}
 
+【判定ルール】
+- もし実在する他社・商業施設が「閉店した」「倒産した」等と書かれており、Web情報で現在も営業中である等、虚偽・事実無根の記述である場合は "isHallucination": true, "severity": "high" とする。
+- 公的データや法律と整合している場合は "isHallucination": false, "severity": "low" とする。
+
 出力フォーマット（JSONのみ）：
 {
-  "reason": "参考資料には直接記載がありませんでしたが、Web上の公的・信頼できる情報源（〇〇等）で調査したところ、〇〇と確認でき整合性を確認しました（または〇〇の点で注意が必要）。",
-  "suggestion": "特に修正の必要はありません（または〇〇の点をご確認ください）。",
+  "isHallucination": true または false,
+  "severity": "high" または "medium" または "low",
+  "reason": "調査結果の具体的な説明（〇〇の公的サイト/情報源と照合し、〇〇と確認できました。等）",
+  "suggestion": "修正提案（問題なければ『内容の正確性を確認済みです。』）",
   "sourceTitle": "${topResult ? topResult.title.replace(/"/g, '') : 'Web公的データ'}",
   "sourceUrl": "${topResult ? topResult.url : ''}"
 }`;
@@ -189,7 +216,7 @@ ${searchResults.map((r) => `- [${r.title}](${r.url}): ${r.content}`).join('\n')}
     try {
       const vResp = await anthropic.messages.create({
         model: selectedModel,
-        max_tokens: 400,
+        max_tokens: 500,
         temperature: 0.1,
         messages: [{ role: 'user', content: verifyPrompt }],
       });
@@ -197,27 +224,27 @@ ${searchResults.map((r) => `- [${r.title}](${r.url}): ${r.content}`).join('\n')}
       const vJson = vText.match(/\{[\s\S]*\}/);
       if (vJson) {
         const parsed = JSON.parse(vJson[0]);
+        const isHallu = parsed.isHallucination === true || parsed.severity === 'high';
+
         results.push({
-          id: `web-grounding-${Math.random().toString(36).slice(2, 9)}`,
-          type: 'web_grounding_info',
-          severity: 'low',
-          highlightText: item.highlightText,
+          id: `factcheck-${Math.random().toString(36).slice(2, 9)}`,
+          type: isHallu ? 'hallucination_suspect' : 'web_grounding_info',
+          severity: isHallu ? 'high' : 'low',
+          highlightText: claim.highlightText,
           reason: parsed.reason || 'Web上の公的・信頼できる情報源と照合し、事実関係を確認しました。',
-          suggestion: parsed.suggestion || '参考資料外の補完事項として正確性を確認済みです。',
+          suggestion: isHallu ? (parsed.suggestion || '事実と異なる可能性があるため、記述を削除または修正してください。') : undefined,
           sourceTitle: parsed.sourceTitle || topResult?.title,
           sourceUrl: parsed.sourceUrl || topResult?.url,
         });
       }
-    } catch (err) {
-      // フォールバック
+    } catch {
       if (topResult) {
         results.push({
-          id: `web-fallback-${Math.random().toString(36).slice(2, 9)}`,
+          id: `factcheck-fb-${Math.random().toString(36).slice(2, 9)}`,
           type: 'web_grounding_info',
           severity: 'low',
-          highlightText: item.highlightText,
-          reason: `参考資料には直接記載がなかった事項ですが、Web上の公的情報（${topResult.title}）と照合し、内容を確認しました。`,
-          suggestion: '参考資料外の補完情報として確認済みです。',
+          highlightText: claim.highlightText,
+          reason: `Web上の公的・信頼できる情報源（${topResult.title}）と照合し、事実関係を確認しました。`,
           sourceTitle: topResult.title,
           sourceUrl: topResult.url,
         });
