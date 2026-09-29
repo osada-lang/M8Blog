@@ -162,23 +162,62 @@ export async function generateArticleWithClaude(
     .replace(/\*?\*?文字数[：:]\s*[\d,]+文字?\*?\*?\s*$/i, '')
     .trim();
 
-  // 本文、文中CTA、文末CTAの3分割パース処理
-  let contentMarkdown = fullText;
+  // 頑健な3分割パース処理（タグが省略された場合でも確実に分離）
+  let contentMarkdown = '';
   let midCtaMarkdown = '';
   let endCtaMarkdown = '';
 
-  const articleMatch = fullText.match(/=== ARTICLE_START ===([\s\S]*?)=== ARTICLE_END ===/i);
-  const midCtaMatch = fullText.match(/=== MID_CTA_START ===([\s\S]*?)=== MID_CTA_END ===/i);
-  const endCtaMatch = fullText.match(/=== END_CTA_START ===([\s\S]*?)=== END_CTA_END ===/i);
+  // 1. 文中CTAの抽出
+  const midCtaMatch = fullText.match(/=== MID_CTA_START ===([\s\S]*?)(?:=== MID_CTA_END ===|$)/i);
+  if (midCtaMatch) {
+    midCtaMarkdown = midCtaMatch[1].replace(/=== MID_CTA_END ===/g, '').trim();
+  }
 
+  // 2. 文末CTAの抽出
+  const endCtaMatch = fullText.match(/=== END_CTA_START ===([\s\S]*?)(?:=== END_CTA_END ===|$)/i);
+  if (endCtaMatch) {
+    endCtaMarkdown = endCtaMatch[1].replace(/=== END_CTA_END ===/g, '').trim();
+  }
+
+  // 3. 本文の抽出
+  const articleMatch = fullText.match(/=== ARTICLE_START ===([\s\S]*?)(?:=== ARTICLE_END ===|=== MID_CTA_START ===|$)/i);
   if (articleMatch) {
     contentMarkdown = articleMatch[1].trim();
+  } else {
+    // === ARTICLE_START === が省略された場合は、MID_CTA_START や END_CTA_START の前までを本文とする
+    const midIdx = fullText.indexOf('=== MID_CTA_START ===');
+    const endIdx = fullText.indexOf('=== END_CTA_START ===');
+    const cutIdx = (midIdx !== -1 && endIdx !== -1) ? Math.min(midIdx, endIdx) : (midIdx !== -1 ? midIdx : endIdx);
+
+    if (cutIdx !== -1) {
+      contentMarkdown = fullText.slice(0, cutIdx).trim();
+    } else {
+      contentMarkdown = fullText.trim();
+    }
   }
-  if (midCtaMatch) {
-    midCtaMarkdown = midCtaMatch[1].trim();
+
+  // 念のため、残存したすべての === ... === タグを完全除去（サニタイズ）
+  contentMarkdown = contentMarkdown
+    .replace(/=== ARTICLE_START ===/gi, '')
+    .replace(/=== ARTICLE_END ===/gi, '')
+    .replace(/=== MID_CTA_START ===/gi, '')
+    .replace(/=== MID_CTA_END ===/gi, '')
+    .replace(/=== END_CTA_START ===/gi, '')
+    .replace(/=== END_CTA_END ===/gi, '')
+    .trim();
+
+  if (midCtaMarkdown) {
+    midCtaMarkdown = midCtaMarkdown
+      .replace(/=== MID_CTA_START ===/gi, '')
+      .replace(/=== MID_CTA_END ===/gi, '')
+      .trim();
   }
-  if (endCtaMatch) {
-    endCtaMarkdown = endCtaMatch[1].trim();
+
+  if (endCtaMarkdown) {
+    endCtaMarkdown = endCtaMarkdown
+      .replace(/=== END_CTA_START ===/gi, '')
+      .replace(/=== END_CTA_END ===/gi, '')
+      .trim();
   }
 
   // タイトル（H1）の抽出
