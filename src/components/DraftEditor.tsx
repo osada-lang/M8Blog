@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { BlogDraft, KnowledgeItem } from '@/types';
+import JSZip from 'jszip';
 import { 
   ShieldCheck, 
   ShieldAlert, 
@@ -11,11 +12,14 @@ import {
   Download, 
   FileEdit, 
   Eye, 
-  BookOpen,
-  ExternalLink,
-  Globe,
-  AlertOctagon,
-  CheckCircle2
+  BookOpen, 
+  ExternalLink, 
+  Globe, 
+  AlertOctagon, 
+  CheckCircle2,
+  Archive,
+  FileText,
+  Bookmark
 } from 'lucide-react';
 
 interface DraftEditorProps {
@@ -148,27 +152,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     const line = rawLines[i];
     const trimmed = line.trim();
 
-    if (trimmed.includes('この記事のテーマを') && trimmed.includes('整理したい方へ')) {
-      if (inBlockquote) flushBlockquote(`quote-${i}`);
-      if (inTable) flushTable(`table-${i}`);
-
-      const ctaBlockLines: string[] = [trimmed.replace(/^>\s*/, '')];
-      i++;
-      while (i < rawLines.length) {
-        const nextLine = rawLines[i].trim();
-        if (nextLine.startsWith('###') || nextLine.startsWith('##') || nextLine.startsWith('📖') || (nextLine === '' && i + 1 < rawLines.length && rawLines[i + 1].trim().startsWith('###'))) {
-          break;
-        }
-        if (nextLine) {
-          ctaBlockLines.push(nextLine.replace(/^>\s*/, ''));
-        }
-        i++;
-      }
-
-      renderedElements.push(renderCtaCard(ctaBlockLines, `cta-auto-${i}`));
-      continue;
-    }
-
     if (trimmed.startsWith('>')) {
       if (inTable) flushTable(`table-${i}`);
       blockquoteLines.push(trimmed.replace(/^>\s*/, ''));
@@ -282,34 +265,89 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
   onRecheckFact,
   isRechecking = false,
 }) => {
+  // 表示パーツ切り替え: 'article' (本文) | 'midCta' (文中CTA) | 'endCta' (文末CTA)
+  const [activePart, setActivePart] = useState<'article' | 'midCta' | 'endCta'>('article');
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
-  const [copied, setCopied] = useState(false);
+  const [copiedPart, setCopiedPart] = useState<string | null>(null);
+  const [isZipping, setIsZipping] = useState(false);
 
   const factCheck = draft.factCheck;
+  const currentContent = activePart === 'article' 
+    ? draft.contentMarkdown 
+    : activePart === 'midCta' 
+    ? (draft.midCtaMarkdown || '（文中CTAは設定されていません）') 
+    : (draft.endCtaMarkdown || '（文末CTAは設定されていません）');
+
   const plainCharCount = countPlainTextCharacters(draft.contentMarkdown);
 
   const handleContentChange = (newContent: string) => {
-    onUpdateDraft({
-      ...draft,
-      contentMarkdown: newContent,
-      updatedAt: new Date().toISOString(),
-    });
+    if (activePart === 'article') {
+      onUpdateDraft({ ...draft, contentMarkdown: newContent, updatedAt: new Date().toISOString() });
+    } else if (activePart === 'midCta') {
+      onUpdateDraft({ ...draft, midCtaMarkdown: newContent, updatedAt: new Date().toISOString() });
+    } else if (activePart === 'endCta') {
+      onUpdateDraft({ ...draft, endCtaMarkdown: newContent, updatedAt: new Date().toISOString() });
+    }
   };
 
-  const handleCopyMarkdown = () => {
-    navigator.clipboard.writeText(draft.contentMarkdown);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyCurrent = () => {
+    navigator.clipboard.writeText(currentContent);
+    setCopiedPart(activePart);
+    setTimeout(() => setCopiedPart(null), 2000);
   };
 
-  const handleDownloadMarkdown = () => {
-    const blob = new Blob([draft.contentMarkdown], { type: 'text/markdown;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${draft.title.replace(/[\s/\\?%*:|"<>]/g, '_')}.md`;
-    link.click();
-    URL.revokeObjectURL(url);
+  // ZIPファイル一括ダウンロード機能
+  const handleDownloadZip = async () => {
+    setIsZipping(true);
+    try {
+      const zip = new JSZip();
+      const safeTitle = draft.title.replace(/[\s/\\?%*:|"<>]/g, '_').slice(0, 50);
+      const folder = zip.folder(safeTitle) || zip;
+
+      // 1. 01_ブログ本文.md
+      folder.file('01_ブログ本文.md', draft.contentMarkdown);
+
+      // 2. 02_文中CTA.md
+      if (draft.midCtaMarkdown) {
+        folder.file('02_文中CTA.md', draft.midCtaMarkdown);
+      }
+
+      // 3. 03_文末CTA.md
+      if (draft.endCtaMarkdown) {
+        folder.file('03_文末CTA.md', draft.endCtaMarkdown);
+      }
+
+      // 4. 記事情報_メタデータ.txt
+      const metadataText = `【記事タイトル】
+${draft.title}
+
+【ターゲットキーワード】
+${draft.keyword}
+
+【メタディスクリプション（抜粋・SEO用説明文）】
+${draft.metaDescription || '未設定'}
+
+【推奨タグ】
+${draft.suggestedTags.map((t) => `#${t}`).join(' ')}
+
+【生成日時】
+${new Date(draft.createdAt).toLocaleString('ja-JP')}
+`;
+      folder.file('記事情報_メタデータ.txt', metadataText);
+
+      // ZIP生成＆ダウンロード
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${safeTitle}.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('ZIP generation error:', err);
+    } finally {
+      setIsZipping(false);
+    }
   };
 
   const getScoreBadge = (score: number) => {
@@ -348,20 +386,24 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
             <h2 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">{draft.title}</h2>
           </div>
 
-          <div className="flex items-center space-x-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* コピーボタン */}
             <button
-              onClick={handleCopyMarkdown}
-              className="apple-secondary-btn flex items-center space-x-1.5 px-3.5 sm:px-4 py-1.5 text-xs font-medium"
+              onClick={handleCopyCurrent}
+              className="apple-secondary-btn flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-medium"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'コピー完了' : 'Markdownコピー'}</span>
+              {copiedPart === activePart ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedPart === activePart ? 'コピー完了' : `${activePart === 'article' ? '本文' : activePart === 'midCta' ? '文中CTA' : '文末CTA'}をコピー`}</span>
             </button>
+
+            {/* 📦 ZIP一括ダウンロードボタン */}
             <button
-              onClick={handleDownloadMarkdown}
-              className="apple-secondary-btn flex items-center space-x-1.5 px-3.5 sm:px-4 py-1.5 text-xs font-medium"
+              onClick={handleDownloadZip}
+              disabled={isZipping}
+              className="apple-pill-btn flex items-center space-x-1.5 px-4 py-1.5 text-xs font-semibold shadow-sm"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>.md保存</span>
+              <Archive className="w-3.5 h-3.5" />
+              <span>{isZipping ? 'ZIP生成中...' : '📦 ZIP一括ダウンロード'}</span>
             </button>
           </div>
         </div>
@@ -387,47 +429,111 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
 
       {/* メインコンテンツ */}
       <div className="space-y-6">
-        {/* 切り替えバー ＆ 正確な純テキスト文字数表示 */}
-        <div className="flex items-center justify-between apple-card px-4 py-2.5">
-          <div className="flex items-center space-x-1 bg-[#f5f5f7] p-1 rounded-full border border-[#e5e5ea] text-xs font-medium">
+        {/* パーツ切り替えタブ（本文 / 文中CTA / 文末CTA） ＆ 表示モード */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 apple-card p-3 sm:px-4 sm:py-2.5">
+          {/* 3分割パーツ選択 */}
+          <div className="inline-flex p-1 bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl text-xs font-medium">
             <button
-              onClick={() => setViewMode('preview')}
-              className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
-                viewMode === 'preview' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
+              type="button"
+              onClick={() => setActivePart('article')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+                activePart === 'article'
+                  ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
             >
-              <Eye className="w-3.5 h-3.5" />
-              <span>ブログ表示プレビュー（実物風）</span>
+              <FileText className="w-3.5 h-3.5 text-[#0066cc]" />
+              <span>01. ブログ本文</span>
             </button>
+
             <button
-              onClick={() => setViewMode('edit')}
-              className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
-                viewMode === 'edit' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
+              type="button"
+              onClick={() => setActivePart('midCta')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+                activePart === 'midCta'
+                  ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
               }`}
             >
-              <FileEdit className="w-3.5 h-3.5" />
-              <span>Markdown直接編集</span>
+              <Bookmark className="w-3.5 h-3.5 text-amber-600" />
+              <span>02. 文中CTA</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActivePart('endCta')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1 ${
+                activePart === 'endCta'
+                  ? 'bg-white text-[#1d1d1f] shadow-sm font-semibold'
+                  : 'text-[#86868b] hover:text-[#1d1d1f]'
+              }`}
+            >
+              <Bookmark className="w-3.5 h-3.5 text-emerald-600" />
+              <span>03. 文末CTA</span>
             </button>
           </div>
 
-          {/* 本文実文字数 */}
-          <div className="text-right">
-            <span className="text-xs font-semibold text-[#1d1d1f]">
-              本文実文字数: <strong className="text-[#0066cc]">{plainCharCount.toLocaleString()}</strong> 文字
-            </span>
+          {/* プレビュー / 編集 ＆ 文字数 */}
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 bg-[#f5f5f7] p-1 rounded-full border border-[#e5e5ea] text-xs font-medium">
+              <button
+                onClick={() => setViewMode('preview')}
+                className={`px-3 py-1 rounded-full flex items-center space-x-1 transition ${
+                  viewMode === 'preview' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>プレビュー</span>
+              </button>
+              <button
+                onClick={() => setViewMode('edit')}
+                className={`px-3 py-1 rounded-full flex items-center space-x-1 transition ${
+                  viewMode === 'edit' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
+                }`}
+              >
+                <FileEdit className="w-3.5 h-3.5" />
+                <span>編集</span>
+              </button>
+            </div>
+
+            {activePart === 'article' && (
+              <span className="text-xs font-semibold text-[#1d1d1f] whitespace-nowrap">
+                本文実文字数: <strong className="text-[#0066cc]">{plainCharCount.toLocaleString()}</strong> 文字
+              </span>
+            )}
           </div>
         </div>
 
         {/* 本文エリア */}
         {viewMode === 'preview' ? (
           <div className="apple-card p-6 sm:p-12 text-[#1d1d1f] bg-white shadow-sm border border-[#e5e5ea]">
-            <RichBlogRenderer markdown={draft.contentMarkdown} />
+            {activePart === 'article' ? (
+              <RichBlogRenderer markdown={draft.contentMarkdown} />
+            ) : activePart === 'midCta' ? (
+              <div className="space-y-4">
+                <span className="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                  📌 02_文中CTA（記事中盤に画像と並べて配置する専用パーツ）
+                </span>
+                <div className="p-6 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5]">
+                  <RichBlogRenderer markdown={draft.midCtaMarkdown || ''} />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                  🎯 03_文末CTA（記事の最下部に配置するクロージングパーツ）
+                </span>
+                <div className="p-6 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5]">
+                  <RichBlogRenderer markdown={draft.endCtaMarkdown || ''} />
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <textarea
-            rows={26}
+            rows={24}
             className="w-full apple-card p-4 sm:p-6 text-xs sm:text-sm text-[#1d1d1f] font-mono leading-relaxed focus:outline-none focus:border-[#0066cc]"
-            value={draft.contentMarkdown}
+            value={currentContent}
             onChange={(e) => handleContentChange(e.target.value)}
           />
         )}
@@ -521,7 +627,7 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
                             {isCritical
                               ? '🚨 重大警告（ハルシネーション検知）'
                               : issue.type === 'medical_law_risk'
-                              ? '🏥 薬機法/医療広告リスク'
+                              ? '🏥 薬機法/医療広告'
                               : issue.type === 'web_grounding_info'
                               ? '🌐 資料外のWeb裏付け調査'
                               : '📝 要確認事項'}

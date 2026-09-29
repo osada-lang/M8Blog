@@ -71,8 +71,8 @@ export interface FactCheckIssue {
   reason: string;
   suggestion?: string;
   matchedKnowledgeSource?: string;
-  sourceTitle?: string; // Web根拠ソースのタイトル
-  sourceUrl?: string;   // Web根拠ソースのURL
+  sourceTitle?: string;
+  sourceUrl?: string;
 }
 
 export interface FactCheckResult {
@@ -91,7 +91,9 @@ export interface BlogDraft {
   subKeywords?: string[];
   promptType: PromptType;
   title: string;
-  contentMarkdown: string;
+  contentMarkdown: string; // 01_ブログ本文.md
+  midCtaMarkdown?: string;  // 02_文中CTA.md
+  endCtaMarkdown?: string;  // 03_文末CTA.md
   metaDescription: string;
   suggestedTags: string[];
   usedKnowledgeIds: string[];

@@ -4,7 +4,9 @@ import { buildRagContext } from './rag';
 
 export interface GenerationOutput {
   title: string;
-  contentMarkdown: string;
+  contentMarkdown: string; // 01_ブログ本文.md
+  midCtaMarkdown?: string;  // 02_文中CTA.md
+  endCtaMarkdown?: string;  // 03_文末CTA.md
   metaDescription: string;
   suggestedTags: string[];
   usedKnowledgeIds: string[];
@@ -84,7 +86,7 @@ export async function generateArticleWithClaude(
     8
   );
 
-  // ユーザープロンプトテンプレートへの完全マッピング（余計な加工なし）
+  // ユーザープロンプトテンプレートへの完全マッピング
   const userPrompt = promptTemplate.userPromptTemplate
     .replace(/\{\{CLIENT_NAME\}\}/g, client.name)
     .replace(/\{\{CLIENT_INDUSTRY\}\}/g, client.industry || '一般')
@@ -154,14 +156,33 @@ export async function generateArticleWithClaude(
     throw lastError || new Error('Claudeモデルでの記事生成に失敗しました');
   }
 
-  // 記事末尾の自己申告テキスト（例: **文字数：4,798文字** や 文字数：〇〇文字）を自動除去
+  // 記事末尾の自己申告テキストを自動除去
   fullText = fullText
     .replace(/[-*_]{3,}\s*\n+\*?\*?文字数[：:]\s*[\d,]+文字?\*?\*?\s*$/i, '')
     .replace(/\*?\*?文字数[：:]\s*[\d,]+文字?\*?\*?\s*$/i, '')
     .trim();
 
-  // Claudeが生成したMarkdownからタイトル（H1）のみを抽出
-  const lines = fullText.split('\n');
+  // 本文、文中CTA、文末CTAの3分割パース処理
+  let contentMarkdown = fullText;
+  let midCtaMarkdown = '';
+  let endCtaMarkdown = '';
+
+  const articleMatch = fullText.match(/=== ARTICLE_START ===([\s\S]*?)=== ARTICLE_END ===/i);
+  const midCtaMatch = fullText.match(/=== MID_CTA_START ===([\s\S]*?)=== MID_CTA_END ===/i);
+  const endCtaMatch = fullText.match(/=== END_CTA_START ===([\s\S]*?)=== END_CTA_END ===/i);
+
+  if (articleMatch) {
+    contentMarkdown = articleMatch[1].trim();
+  }
+  if (midCtaMatch) {
+    midCtaMarkdown = midCtaMatch[1].trim();
+  }
+  if (endCtaMatch) {
+    endCtaMarkdown = endCtaMatch[1].trim();
+  }
+
+  // タイトル（H1）の抽出
+  const lines = contentMarkdown.split('\n');
   let title = row.mainKeyword;
   for (const line of lines) {
     const trimmed = line.trim();
@@ -171,11 +192,21 @@ export async function generateArticleWithClaude(
     }
   }
 
+  // デフォルトタグ
+  const tags = [
+    row.mainKeyword,
+    client.name,
+    row.category,
+    row.suggestKeywords ? row.suggestKeywords.split(/[,、]/)[0].trim() : undefined,
+  ].filter(Boolean) as string[];
+
   return {
     title,
-    contentMarkdown: fullText,
+    contentMarkdown,
+    midCtaMarkdown: midCtaMarkdown || undefined,
+    endCtaMarkdown: endCtaMarkdown || undefined,
     metaDescription: row.conclusion || '',
-    suggestedTags: [row.mainKeyword, client.name],
+    suggestedTags: Array.from(new Set(tags)),
     usedKnowledgeIds: ragResult.usedKnowledgeIds,
   };
 }
@@ -183,67 +214,123 @@ export async function generateArticleWithClaude(
 function generateMockArticle(client: Client, row: any, usedKnowledgeIds: string[]): GenerationOutput {
   const isMedical = client.promptType === 'medical';
 
-  let markdown = '';
+  let article = '';
+  let midCta = '';
+  let endCta = '';
+
   if (isMedical) {
-    markdown = `# ${row.mainKeyword}の正しい理解と経過目安｜${client.name}
+    article = `# ${row.mainKeyword}の正しい理解と経過目安｜${client.name}
 
-## 冒頭サマリー（要約）
-**【結論】**: ${row.conclusion}
+${row.conclusion}
 
-「${row.mainKeyword}」について検索される方の多くは、「施術後の経過に問題がないか」「いつから普段通りの生活に戻れるか」という不安を抱えています。
-本記事では、公的知見および院内方針に基づき、症状の経過や受診目安を客観的に解説します。
+### この記事のポイント
+* **${row.conclusion}**
+* **自己判断せず専門医へ相談することが安心の第一歩**
+* **無理な刺激を避け適切なアフターケアを徹底する**
 
-## 1. この記事の結論
-- **一言で言うと**: ${row.conclusion}
-- **最も重要なこと**: 無理にいじらず、保湿と紫外線対策を徹底すること
-- **まず確認すべきこと**: 照射モードと医師から指示された注意事項
+### 先に結論を整理します
+* 症状や経過には個人差があるため客観的な判断が必要
+* 早期の相談が結果的に負担を軽減する
+* 信頼できる医療機関での事前確認が重要
 
-## 2. ${row.mainKeyword}のメカニズムと経過日数
-施術後は一時的に熱エネルギーによる反応が生じますが、数日〜1週間程度で徐々に落ち着きます。
+📖 目次
+1. 症状の正しい理解とメカニズム
+2. 受診を検討する目安と判断基準
+3. よくある質問
+4. まとめ
 
-### 独自視点・注意点
-${row.uniquePoint || '個人差があるため、過度な刺激を避けることが肝要です。'}
+## 症状の正しい理解とメカニズム
+症状について正しく把握することが重要です。
 
-## 3. 受診を検討すべき目安
-- 赤みや痛みが想定期間を超えて悪化する場合
-- 強い腫れや水疱が見られる場合
+## 受診を検討する目安と判断基準
+### すぐに受診すべき症状
+### 経過観察できるケース
+### 迷ったときの判断基準
 
-## 4. よくある質問（FAQ）
-**Q. 当日からメイクは可能ですか？**  
-A. 照射モードによって異なります。トーニング等の場合は当日から可能なケースが多いですが、診察時の指示に従ってください。
+## ${client.name}でよくある質問（FAQ）
+### Q1. 治療期間の目安はどのくらいですか？
+A. 症状の程度や選択する治療法によって異なります。初診時に丁寧にご案内します。
 
-## 5. まとめ
-${client.name}では、患者様の不安を解消するための丁寧なカウンセリングを実施しています。ご不安な点はお気軽にご相談ください。
+## まとめ
+正しい知識を持ち、不安な場合は専門医へご相談ください。
 
 ---
-※本記事は一般的な医療情報の提供を目的とし、診断・治療の代替ではありません。症状が続く場合や判断に迷う場合は医師等の専門家へご相談ください。
-`;
+※本記事は一般的な医療情報の提供を目的とし、診断・治療の代替ではありません。症状が続く場合や判断に迷う場合は医師等の専門家へご相談ください。`;
+
+    midCta = `### 症状について専門医へのご相談をご検討中の方へ
+${client.name}では、患者様一人ひとりの症状やご不安に寄り添った丁寧な診察・カウンセリングを行っております。
+
+【Web予約・お問い合わせ】
+[診療時間・アクセス・予約リンク]`;
+
+    endCta = `### 安心してご相談いただける環境を整えています
+${client.name}の診療方針・カウンセリングのご案内。
+
+【初診Web予約・ご相談窓口】
+[電話番号・公式予約フォームリンク]`;
   } else {
-    markdown = `# ${row.mainKeyword}とは？失敗しない判断基準とポイント解説｜${client.name}
+    article = `# ${row.mainKeyword}とは？失敗しない判断基準とポイント解説｜${client.name}
 
-## 冒頭サマリー（AI要約）
-**【結論】**: ${row.conclusion}
+${row.conclusion}
 
-「${row.mainKeyword}」について検討する際、何から整理すべきか迷っていませんか？
-大切なのは、表面的な情報だけで決めず、自社の状況と目的に合った判断基準を持つことです。
+### この記事で押さえたい3つの考え方
+* **${row.conclusion}**
+* **表面的な情報だけでなく現場の工夫や事実を確認する**
+* **比較検討を通じて自分たちに最適な選択肢を見極める**
 
-## 1. なぜ「${row.mainKeyword}」で迷いが生じるのか？
-多くの企業や担当者が直面する課題は、情報が多すぎて本当に必要な選択肢が見えなくなることです。
+### この記事で確かめていくこと
+* なぜ迷いが生じるのか、その根本原因
+* 失敗しないための具体的な判断基準
+* 相談前に確認しておくべきポイント
 
-### 本記事独自の重要視点
-${row.uniquePoint || '事実に基づき、自社に最適な判断基準を整理することが重要です。'}
+### 先に結論を整理します
+* ${row.conclusion}
+* 専門家との対話を通じて本質を整理する
+* 納得できる意思決定が後悔を防ぐ
 
-## 2. ${client.name}における考え方と実績
-${client.name}では、お客様の課題を深く理解し、本質的な価値を伝える支援を大切にしています。
+📖 目次
+1. 課題の背景と本質整理
+2. 具体的な判断基準
+3. 現場の実態・エピソード
+4. よくある質問
+5. この記事のまとめ
 
-## 3. まとめ
-まずは自社の現状と優先課題を整理し、納得できる判断を行いましょう。
-`;
+## 課題の背景と本質整理
+大切なのは、自社の状況と目的に合った判断基準を持つことです。
+
+## 具体的な判断基準
+### 基準1: 目的の明確化
+### 基準2: 実績と提案力の確認
+
+## ${client.name}の現場実態・エピソード
+${row.uniquePoint || '事実に基づき、最適な提案を心がけています。'}
+
+## ${client.name}でよくある質問（FAQ）
+### Q1. 相談前に準備しておくべきものはありますか？
+A. 具体的な要望が固まっていなくても問題ありません。現状の課題をお聞かせください。
+
+## この記事のまとめ
+まずは自社の現状と優先課題を整理し、納得できる判断を行いましょう。`;
+
+    midCta = `### 「では、自社の場合はどうなのか？」と気になったら
+${client.name}では、説明しづらい価値や課題を丁寧に整理し、最適な解決策をご提案しています。
+
+【${client.name}への相談案内】
+[無料相談・お問い合わせ] ／ [公式サイト]
+▶ [関連ガイド：サービス詳細・選び方の基準]`;
+
+    endCta = `### 迷ったときは、まず今の可能性から整理してみませんか？
+最初から答えを決めてしまう必要はありません。${client.name}がお客様の想いに対話で寄り添い、最適な道筋を一緒に考えていきます。
+
+【無料相談・お問い合わせはこちら】
+[電話番号・公式相談窓口]`;
   }
 
   return {
     title: `${row.mainKeyword}とは？失敗しない判断基準｜${client.name}`,
-    contentMarkdown: markdown,
+    contentMarkdown: article,
+    midCtaMarkdown: midCta,
+    endCtaMarkdown: endCta,
     metaDescription: row.conclusion || '',
     suggestedTags: [row.mainKeyword, client.name],
     usedKnowledgeIds,
