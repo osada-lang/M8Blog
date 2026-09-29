@@ -510,22 +510,12 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
             {activePart === 'article' ? (
               <RichBlogRenderer markdown={draft.contentMarkdown} />
             ) : activePart === 'midCta' ? (
-              <div className="space-y-4">
-                <span className="text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
-                  📌 02_文中CTA（記事中盤に画像と並べて配置する専用パーツ）
-                </span>
-                <div className="p-6 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5]">
-                  <RichBlogRenderer markdown={draft.midCtaMarkdown || ''} />
-                </div>
+              <div className="p-6 sm:p-8 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5]">
+                <RichBlogRenderer markdown={draft.midCtaMarkdown || ''} />
               </div>
             ) : (
-              <div className="space-y-4">
-                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                  🎯 03_文末CTA（記事の最下部に配置するクロージングパーツ）
-                </span>
-                <div className="p-6 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5]">
-                  <RichBlogRenderer markdown={draft.endCtaMarkdown || ''} />
-                </div>
+              <div className="p-6 sm:p-8 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5]">
+                <RichBlogRenderer markdown={draft.endCtaMarkdown || ''} />
               </div>
             )}
           </div>
