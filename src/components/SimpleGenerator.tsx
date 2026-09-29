@@ -92,7 +92,7 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
           generateRequest: {
             clientId: client.id,
             sheetRow: selectedRow,
-            promptType: selectedPromptType, // 画面で選択されたプロンプト種別を送信
+            promptType: selectedPromptType,
             apiKey,
           },
         }),
@@ -101,6 +101,7 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || '記事生成に失敗しました');
 
+      // AIが別々に生成した「本文」「文中CTA」「文末CTA」を確実に受け取ってセット
       const draft: BlogDraft = {
         id: `draft-${Date.now()}`,
         clientId: client.id,
@@ -109,6 +110,8 @@ export const SimpleGenerator: React.FC<SimpleGeneratorProps> = ({
         promptType: selectedPromptType,
         title: json.data.title,
         contentMarkdown: json.data.contentMarkdown,
+        midCtaMarkdown: json.data.midCtaMarkdown, // 02_文中CTA
+        endCtaMarkdown: json.data.endCtaMarkdown, // 03_文末CTA
         metaDescription: json.data.metaDescription,
         suggestedTags: json.data.suggestedTags,
         usedKnowledgeIds: json.data.usedKnowledgeIds,
