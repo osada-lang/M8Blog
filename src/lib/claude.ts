@@ -4,7 +4,7 @@ import { buildRagContext } from './rag';
 
 export interface GenerationOutput {
   title: string;
-  contentMarkdown: string; // 01_ブログ本文.md（CTA混入完全ゼロ）
+  contentMarkdown: string; // 01_ブログ本文.md
   midCtaMarkdown?: string;  // 02_文中CTA.md
   endCtaMarkdown?: string;  // 03_文末CTA.md
   metaDescription: string;
@@ -70,7 +70,7 @@ export async function resolveBestModel(apiKey: string): Promise<string> {
 }
 
 /**
- * 独立した文中CTAおよび文末CTAパーツを生成する関数
+ * 独立した文中CTAおよび文末CTAパーツを確実に生成する関数
  */
 async function generateStandaloneCtas(
   anthropic: Anthropic | null,
@@ -98,37 +98,56 @@ async function generateStandaloneCtas(
 キーワード: ${keyword}
 記事の結論: ${conclusion}
 
-【出力フォーマット（JSONのみ）】:
-{
-  "midCta": "### 「では、自社の場合はどうなのか？」と気になったら\\n\\n[読者が記事中盤で疑問を感じた時に、相談や自社の状況確認へ進めるための案内文（150〜250文字）]\\n\\n【${client.name}への相談案内】\\n📞 お電話でのご相談 / 🌐 WEB相談予約\\n▶ [関連ガイド：サービス詳細・選び方の基準]",
-  "endCta": "### [読者の背中を押す魅力的なクロージング見出し]\\n\\n[記事を読み終えた読者へ向けた、${client.name}の想い・特徴・無料相談へのお誘い文（200〜350文字）]\\n\\n【無料相談・お問い合わせはこちら】\\n📞 お電話でのご相談 / 🌐 WEB相談予約\\n▶ [公式サイト・サービス一覧]"
-}`;
+【出力ルール】
+必ず以下の区切りタグを使って出力してください：
+
+=== MID_CTA_START ===
+### 「では、${client.name}はどうなのか？」と気になったら
+[読者が記事中盤で疑問を感じた時に、相談や自社の状況確認へ進めるための案内文（150〜250文字）]
+
+【${client.name}への相談案内】
+[無料相談・お問い合わせ] ／ [公式サイト]
+▶ [関連ガイド：サービス詳細・選び方の基準]
+=== MID_CTA_END ===
+
+=== END_CTA_START ===
+### [読者の背中を押す魅力的なクロージング見出し]
+[記事を読み終えた読者へ向けた、${client.name}の想い・特徴・無料相談へのお誘い文（200〜350文字）]
+
+【無料相談・お問い合わせはこちら】
+[電話番号・公式相談窓口・WEB予約リンク]
+=== END_CTA_END ===`;
 
   try {
     const resp = await anthropic.messages.create({
       model,
-      max_tokens: 1200,
+      max_tokens: 1500,
       temperature: 0.2,
       messages: [{ role: 'user', content: ctaPrompt }],
     });
 
     const text = resp.content.filter((b) => b.type === 'text').map((b) => (b as any).text).join('\n');
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        midCta: parsed.midCta || '',
-        endCta: parsed.endCta || '',
-      };
+
+    const midMatch = text.match(/=== MID_CTA_START ===([\s\S]*?)=== MID_CTA_END ===/i);
+    const endMatch = text.match(/=== END_CTA_START ===([\s\S]*?)=== END_CTA_END ===/i);
+
+    let midCta = midMatch ? midMatch[1].trim() : '';
+    let endCta = endMatch ? endMatch[1].trim() : '';
+
+    if (midCta && endCta) {
+      return { midCta, endCta };
     }
   } catch (err) {
-    console.warn('Standalone CTA generation fallback:', err);
+    console.warn('Standalone CTA generation exception:', err);
   }
 
   return generateFallbackCtas(client, keyword, conclusion, promptType);
 }
 
 function generateFallbackCtas(client: Client, keyword: string, conclusion: string, promptType: PromptType): { midCta: string; endCta: string } {
+  const isFaval = client.name.includes('ファーバル') || client.id.includes('faval');
+  const isPaqla = client.name.includes('PAQLA') || client.id.includes('paqla');
+
   if (promptType === 'recruiting') {
     return {
       midCta: `### 「${client.name}で働くイメージをもっと知りたい」と思ったら
@@ -136,14 +155,16 @@ function generateFallbackCtas(client: Client, keyword: string, conclusion: strin
 求人票に書かれた条件だけでなく、実際の仕事内容や職場の雰囲気を確かめたい方は、カジュアル面談や会社見学をお気軽にご利用ください。
 
 【会社見学・カジュアル面談のご案内】
-[採用窓口・エントリーリンク]
-▶ [職種別の仕事内容と1日の流れ]`,
+[募集要項・採用情報] ／ [会社見学・お問い合わせ]
+▶ [職種別の仕事内容と1日の流れ]
+▶ [${client.name}の教育・研修制度と働く環境]`,
       endCta: `### 自分に合う仕事か、納得して判断してみませんか？
 
-${client.name}では、応募前に仕事のリアルや求める姿勢をオープンにお伝えし、入社後のミスマッチを防ぐ採用を行っています。ご興味のある方は、まずはお気軽にご相談ください。
+${client.name}では、応募前に仕事のリアルや求める姿勢をオープンにお伝えし、入社後のミスマッチを防ぐ採用を行っています。「自分にできるだろうか」と迷っているなら、まずは一度お気軽にお話ししてみませんか。
 
 【募集要項・エントリーはこちら】
-[応募フォーム・採用特設ページリンク]`,
+[応募フォーム・採用特設ページリンク]
+▶ 代表・スタッフインタビュー：[公式サイト]`,
     };
   }
 
@@ -151,19 +172,73 @@ ${client.name}では、応募前に仕事のリアルや求める姿勢をオー
     return {
       midCta: `### 症状について専門医へのご相談をご検討中の方へ
 
-${client.name}では、患者様一人ひとりの症状やご不安に寄り添った丁寧な診察・カウンセリングを行っております。
+${client.name}では、患者様一人ひとりの症状やご不安に寄り添った丁寧な診察・カウンセリングを行っております。一人で抱え込まず、まずはお気軽にご相談ください。
 
 【Web予約・お問い合わせ】
-[診療時間・アクセス・予約リンク]`,
+[Web予約・お問い合わせ窓口] ／ [公式サイト]
+▶ [診療案内・初診の流れ]`,
       endCta: `### 安心してご相談いただける環境を整えています
 
 ${client.name}の診療方針・カウンセリングのご案内。症状についてお悩みの方は、お気軽にご相談ください。
 
 【初診Web予約・ご相談窓口】
-[電話番号・公式予約フォームリンク]`,
+[電話番号・公式予約フォームリンク]
+※本記事は一般的な医療情報の提供を目的とし、診断・治療の代替ではありません。症状が続く場合や判断に迷う場合は医師等の専門家へご相談ください。`,
     };
   }
 
+  // ファーバルデザイン様向け
+  if (isFaval) {
+    return {
+      midCta: `### 「では、自分の家はどうなのか？」と気になったら
+
+築30年という年数だけで、建て替えかフルリノベーションかを決める必要はありません。大切なのは、今の建物にどれだけの価値が残っているのかを確認したうえで、これからどんな暮らしをしたいのかまで含めて考えることです。
+
+株式会社ファーバルデザインは、一級建築士が窓口となり、最初の相談から設計・施工までワンストップで伴走します。名古屋で家づくり・リノベーションをご検討中の方は、まず全体像の整理からお気軽にどうぞ。
+
+📞 052-680-8520 ／ [無料相談・お問い合わせ]
+▶ [関連ガイド：フルリノベーション・建て替え判断ガイド]
+▶ [株式会社ファーバルデザインの想い・実績]`,
+      endCta: `### 建て替えるか、活かすか。まずは今の家の可能性から整理してみませんか？
+
+築30年という年数だけで、建て替えかフルリノベーションかを決める必要はありません。大切なのは、今の建物にどれだけの価値が残っているのかを確認したうえで、これからどんな暮らしをしたいのかまで含めて考えることです。
+
+判断基準を理解しても、実際の構造や劣化状態、希望する間取り、これから住み続けたい年数などは一軒一軒異なります。「この家は残せるのか」「リノベーションする価値があるのか」「建て替えたほうがいいのか」と迷っているなら、どちらかに決めてしまう前に、自分たちの条件を一度整理してみる方法があります。
+
+株式会社ファーバルデザインは、新築・リノベーションに加え、庭・外構や不動産まで含めた住まいづくりをワンストップで提案しています。一級建築士が窓口となり、最初の相談から設計、施工、アフターサポートまで一貫して関わります。
+
+【建て替えかリノベーションか、一緒に整理する】
+📞 052-680-8520 ／ [無料相談・お問い合わせはこちら]
+▶ 代表・スタッフの発信：[公式サイト]`,
+    };
+  }
+
+  // PAQLA様向け
+  if (isPaqla) {
+    return {
+      midCta: `### 「では、自社の場合はどうなのか？」と気になったら
+
+自社の強みやサービス内容は、社内にいると当たり前になっていて見えにくいものです。本当に伝えるべき価値は何なのか、どのように映像や営業資料に落とし込むべきか迷ったら、第三者の取材を活用してみる方法があります。
+
+株式会社PAQLAでは、テレビ局出身のディレクターが徹底した取材を行い、説明しづらい価値を小学3年生にもわかる言葉と映像へ翻訳します。
+
+【株式会社PAQLAへの相談案内】
+[無料相談・お問い合わせ] ／ [公式サイト]
+▶ [関連ガイド：映像制作・取材の流れ]
+▶ [株式会社PAQLAの想い・実績]`,
+      endCta: `### 伝わらない価値を、伝わる力に変える。まずは一度お話ししてみませんか？
+
+商品やサービスに確かな技術やこだわりがあるのに、営業現場や採用でうまく伝わらない。そのもどかしさは、決して情報が足りないからではなく、相手の理解に合わせた「翻訳」ができていないからです。
+
+株式会社PAQLAは、年間100本以上の映像制作実績とテレビ局で培った取材力・構成力で、貴社の本質的な価値を掘り起こし、顧客や求職者の心に届く表現へ変換します。
+
+【無料相談・お問い合わせはこちら】
+[無料相談・お問い合わせフォーム]
+▶ 公式サイト・制作事例：https://paqla.co.jp/`,
+    };
+  }
+
+  // 汎用
   return {
     midCta: `### 「では、自社の場合はどうなのか？」と気になったら
 
@@ -316,8 +391,8 @@ export async function generateArticleWithClaude(
   return {
     title,
     contentMarkdown: articleText, // 本文（CTA混入完全ゼロ）
-    midCtaMarkdown: midCta,       // 独立した文中CTA
-    endCtaMarkdown: endCta,       // 独立した文末CTA
+    midCtaMarkdown: midCta || undefined,
+    endCtaMarkdown: endCta || undefined,
     metaDescription: row.conclusion || '',
     suggestedTags: Array.from(new Set(tags)),
     usedKnowledgeIds: ragResult.usedKnowledgeIds,
