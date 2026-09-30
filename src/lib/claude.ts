@@ -82,7 +82,6 @@ async function generateStandaloneCtas(
   const isRecruiting = promptType === 'recruiting';
   const isMedical = promptType === 'medical';
   const isFaval = client.name.includes('ファーバル') || client.id.includes('faval');
-  const isPaqla = client.name.includes('PAQLA') || client.id.includes('paqla');
 
   if (!anthropic) {
     return generateDynamicFallbackCtas(client, row, promptType);
@@ -93,7 +92,7 @@ async function generateStandaloneCtas(
 【対象企業・店舗】
 名称: ${client.name}
 業種: ${client.industry || '一般'}
-連絡先/相談窓口: ${isFaval ? '📞 052-680-8520 ／ 無料相談・お問い合わせ' : isPaqla ? '無料相談・お問い合わせフォーム（https://paqla.co.jp/）' : '無料相談・お問い合わせ'}
+連絡先/相談窓口: ${isFaval ? '📞 052-680-8520 ／ 無料相談・お問い合わせ' : '無料相談・お問い合わせ'}
 
 【選択されたターゲットキーワード情報】
 メインキーワード: ${row.mainKeyword}
@@ -103,6 +102,7 @@ async function generateStandaloneCtas(
 
 【出力ルール】
 必ず「${row.mainKeyword}」に関する読者の悩み・疑問に寄り添ったオリジナルなCTA文面を作成し、以下の区切りタグで出力してください：
+※【重要】：文末CTAには電話番号やURLリンクを付けず、最後の【ボタン文言】までで文章を終了してください。
 
 === MID_CTA_START ===
 ### 「では、${row.mainKeyword}について自社の場合はどうなのか？」と気になったら
@@ -117,9 +117,7 @@ ${isFaval ? '📞 052-680-8520 ／ [無料相談・お問い合わせ]' : '[無�
 ### [${row.mainKeyword}で迷う読者の背中を押す魅力的なクロージング見出し]
 [記事を読み終えた読者へ向けた、${client.name}の特徴・想い・相談へのお誘い文（200〜350文字）]
 
-【無料相談・お問い合わせはこちら】
-${isFaval ? '📞 052-680-8520 ／ [無料相談・お問い合わせはこちら]' : '[無料相談・お問い合わせフォーム]'}
-▶ [公式サイト・詳細案内]
+【${row.mainKeyword}について一緒に整理する】
 === END_CTA_END ===`;
 
   try {
@@ -149,7 +147,7 @@ ${isFaval ? '📞 052-680-8520 ／ [無料相談・お問い合わせはこち�
 }
 
 /**
- * キーワード連動型の動的フォールバックCTA生成
+ * キーワード連動型の動的フォールバックCTA生成（文末CTAはボタン文言までで完結）
  */
 function generateDynamicFallbackCtas(client: Client, row: any, promptType: PromptType): { midCta: string; endCta: string } {
   const isFaval = client.name.includes('ファーバル') || client.id.includes('faval');
@@ -173,9 +171,7 @@ ${conclusion}
 
 ${client.name}では、応募前に仕事のリアルや求める姿勢をオープンにお伝えし、入社後のミスマッチを防ぐ採用を行っています。「自分にできるだろうか」と迷っているなら、お気軽にご相談ください。
 
-【募集要項・エントリーはこちら】
-[応募フォーム・採用特設ページリンク]
-▶ 代表・スタッフインタビュー：[公式サイト]`,
+【募集要項・エントリーはこちら】`,
     };
   }
 
@@ -194,13 +190,11 @@ ${conclusion}
 
 ${client.name}の診療方針・カウンセリングのご案内。症状についてお悩みの方は、お気軽にご相談ください。
 
-【初診Web予約・ご相談窓口】
-[電話番号・公式予約フォームリンク]
-※本記事は一般的な医療情報の提供を目的とし、診断・治療の代替ではありません。症状が続く場合や判断に迷う場合は医師等の専門家へご相談ください。`,
+【初診Web予約・ご相談窓口】`,
     };
   }
 
-  // ファーバルデザイン様向け（キーワード完全連動）
+  // ファーバルデザイン様向け（実物Wordファイル準拠）
   if (isFaval) {
     return {
       midCta: `### 「では、${kw}について自分の家はどうなのか？」と気になったら
@@ -214,21 +208,21 @@ ${conclusion}
 📞 052-680-8520 ／ [無料相談・お問い合わせ]
 ▶ [関連ガイド：${kw}の判断基準]
 ▶ [株式会社ファーバルデザインの想い・実績]`,
-      endCta: `### ${kw}で迷ったら。まずは今の可能性から整理してみませんか？
+      endCta: `### 建て替えるか、活かすか。まずは今の家の可能性から整理してみませんか？
 
 ${conclusion}
 
-判断基準を理解しても、実際の構造や劣化状態、希望する間取り、これから住み続けたい年数などは一軒一軒異なります。「どう判断すべきか」と迷っているなら、答えを決めてしまう前に、自分たちの条件を一度整理してみる方法があります。
+判断基準を理解しても、実際の構造や劣化状態、希望する間取り、これから住み続けたい年数などは一軒一軒異なります。「この家は残せるのか」「リノベーションする価値があるのか」「建て替えたほうがいいのか」と迷っているなら、どちらかに決めてしまう前に、自分たちの条件を一度整理してみる方法があります。
 
 株式会社ファーバルデザインは、新築・リノベーションに加え、庭・外構や不動産まで含めた住まいづくりをワンストップで提案しています。一級建築士が窓口となり、最初の相談から設計、施工、アフターサポートまで一貫して関わります。
 
-【${kw}について一緒に整理する】
-📞 052-680-8520 ／ [無料相談・お問い合わせはこちら]
-▶ 代表・スタッフの発信：[公式サイト]`,
+大切にしているのは、最初から「建て替える」「リノベーションする」と答えを決めることではなく、どんな暮らしがしたいのか、何を心地よいと感じるのかを対話しながら整理していくこと。建築・庭・不動産それぞれの専門性を活かしながら、今ある住まいとこれからの暮らしを一緒に考えていきます。
+
+【建て替えかリノベーションか、一緒に整理する】`,
     };
   }
 
-  // PAQLA様向け（キーワード完全連動）
+  // PAQLA様向け
   if (isPaqla) {
     return {
       midCta: `### 「では、${kw}について自社の場合はどうなのか？」と気になったら
@@ -251,9 +245,7 @@ ${conclusion}
 
 株式会社PAQLAは、年間100本以上の映像制作実績とテレビ局で培った取材力・構成力で、貴社の本質的な価値を掘り起こし、顧客や求職者の心に届く表現へ変換します。
 
-【無料相談・お問い合わせはこちら】
-[無料相談・お問い合わせフォーム]
-▶ 公式サイト・制作事例：https://paqla.co.jp/`,
+【無料相談・お問い合わせはこちら】`,
     };
   }
 
@@ -274,9 +266,67 @@ ${conclusion}
 
 最初から答えを決めてしまう必要はありません。${client.name}がお客様の想いに対話で寄り添い、最適な道筋を一緒に考えていきます。
 
-【無料相談・お問い合わせはこちら】
-[電話番号・公式相談窓口・WEB予約]`,
+【${kw}について一緒に整理する】`,
   };
+}
+
+/**
+ * 本文中の最適な位置（第2章/H2見出し2の直後）に「文中CTA挿入推奨位置」コメントを自動挿入する関数
+ */
+function injectMidCtaPlaceholder(markdown: string): string {
+  const lines = markdown.split('\n');
+  let h2Count = 0;
+  let inserted = false;
+  const newLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    newLines.push(line);
+
+    // H2見出し（## ）をカウント
+    if (line.trim().startsWith('## ') && !line.trim().includes('目次') && !line.trim().includes('まとめ') && !line.trim().includes('よくある質問')) {
+      h2Count++;
+      // 2つ目のH2セクションの内容が終わる箇所（3つ目のH2の手前、または2つ目のH2の数段落後）に挿入
+      if (h2Count === 2 && !inserted) {
+        // 次のH2またはFAQの手前を探す
+        let targetIdx = i + 1;
+        while (targetIdx < lines.length) {
+          if (lines[targetIdx].trim().startsWith('## ') || lines[targetIdx].trim().startsWith('---')) {
+            break;
+          }
+          targetIdx++;
+        }
+        // ループ内で挿入位置をマーク
+      }
+    }
+  }
+
+  // 2つ目のH2セクションの内容の後に挿入する処理
+  const finalLines: string[] = [];
+  let currentH2 = 0;
+  let hasInjected = false;
+
+  for (let j = 0; j < lines.length; j++) {
+    const l = lines[j];
+    if (l.trim().startsWith('## ') && !l.trim().includes('目次') && !l.trim().includes('まとめ') && !l.trim().includes('よくある質問')) {
+      currentH2++;
+      if (currentH2 === 3 && !hasInjected) {
+        // 3つ目のH2の直前に文中CTA挿入位置コメントを挿入
+        finalLines.push('');
+        finalLines.push('<!-- 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください） -->');
+        finalLines.push('');
+        hasInjected = true;
+      }
+    }
+    finalLines.push(l);
+  }
+
+  // 3つ目のH2がない場合のフォールバック（目次の後、または中央付近）
+  if (!hasInjected) {
+    return markdown + '\n\n<!-- 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください） -->';
+  }
+
+  return finalLines.join('\n');
 }
 
 export async function generateArticleWithClaude(
@@ -382,7 +432,10 @@ export async function generateArticleWithClaude(
     .replace(/=== END_CTA_START ===[\s\S]*?=== END_CTA_END ===/gi, '')
     .trim();
 
-  // 2. 選択されたキーワード情報（row）に100%連動した「02_文中CTA」と「03_文末CTA」の生成
+  // 本文中の最適な位置に「文中CTA挿入推奨位置」コメントを自動挿入
+  articleText = injectMidCtaPlaceholder(articleText);
+
+  // 2. 選択されたキーワード情報（row）に100%連動した「02_文中CTA」と「03_文末CTA」の生成（文末はボタン文言までで完結）
   const { midCta, endCta } = await generateStandaloneCtas(
     anthropic,
     selectedModel,
@@ -412,7 +465,7 @@ export async function generateArticleWithClaude(
 
   return {
     title,
-    contentMarkdown: articleText, // 本文（CTA混入完全ゼロ）
+    contentMarkdown: articleText, // 本文（文中CTA挿入位置コメント入り）
     midCtaMarkdown: midCta || undefined,
     endCtaMarkdown: endCta || undefined,
     metaDescription: row.conclusion || '',
@@ -453,6 +506,8 @@ ${row.conclusion}
 ### すぐに受診すべき症状
 ### 経過観察できるケース
 ### 迷ったときの判断基準
+
+<!-- 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください） -->
 
 ## ${client.name}でよくある質問（FAQ）
 ### Q1. 治療期間の目安はどのくらいですか？
@@ -496,6 +551,8 @@ ${row.conclusion}
 ## 具体的な判断基準
 ### 基準1: 目的の明確化
 ### 基準2: 実績と提案力の確認
+
+<!-- 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください） -->
 
 ## ${client.name}の現場実態・エピソード
 ${row.uniquePoint || '事実に基づき、最適な提案を心がけています。'}

@@ -186,6 +186,17 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
+    // 文中CTA挿入推奨位置のガイドバー表示
+    if (trimmed.includes('文中CTA挿入推奨位置') || trimmed.includes('02_文中CTA')) {
+      renderedElements.push(
+        <div key={i} className="my-8 p-3.5 bg-amber-50 border border-dashed border-amber-300 rounded-xl text-center text-xs text-amber-900 font-sans font-medium flex items-center justify-center space-x-2">
+          <span>💡 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください）</span>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
     if (trimmed.startsWith('# ')) {
       renderedElements.push(
         <h1 key={i} className="text-2xl sm:text-3xl font-normal text-[#1d1d1f] tracking-tight leading-tight mt-6 mb-8 pb-4 border-b-2 border-[#1d1d1f]">
