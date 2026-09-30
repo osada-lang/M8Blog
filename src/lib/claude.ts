@@ -70,52 +70,56 @@ export async function resolveBestModel(apiKey: string): Promise<string> {
 }
 
 /**
- * 独立した文中CTAおよび文末CTAパーツを確実に生成する関数
+ * 選択されたキーワード・検索意図・結論に完全に連動したCTAを動的生成する関数
  */
 async function generateStandaloneCtas(
   anthropic: Anthropic | null,
   model: string,
   client: Client,
-  keyword: string,
-  conclusion: string,
+  row: any,
   promptType: PromptType
 ): Promise<{ midCta: string; endCta: string }> {
   const isRecruiting = promptType === 'recruiting';
   const isMedical = promptType === 'medical';
+  const isFaval = client.name.includes('ファーバル') || client.id.includes('faval');
+  const isPaqla = client.name.includes('PAQLA') || client.id.includes('paqla');
 
   if (!anthropic) {
-    return generateFallbackCtas(client, keyword, conclusion, promptType);
+    return generateDynamicFallbackCtas(client, row, promptType);
   }
 
-  const ctaPrompt = `以下の企業・店舗情報とキーワードに基づき、ブログ記事にパーツとして差し込む【02_文中CTA】と【03_文末CTA】の2つの独立したCTAパーツをMarkdown形式で作成してください。
+  const ctaPrompt = `以下の企業・店舗情報と【選択されたキーワード・設計情報】に基づき、この記事に差し込む【02_文中CTA】と【03_文末CTA】の2つのCTAパーツを、キーワードの内容（${row.mainKeyword}）に完全に連動させてMarkdown形式で作成してください。
 
 【対象企業・店舗】
 名称: ${client.name}
 業種: ${client.industry || '一般'}
-モード: ${isRecruiting ? '採用特化' : isMedical ? '医療' : '通常（365ブログ）'}
+連絡先/相談窓口: ${isFaval ? '📞 052-680-8520 ／ 無料相談・お問い合わせ' : isPaqla ? '無料相談・お問い合わせフォーム（https://paqla.co.jp/）' : '無料相談・お問い合わせ'}
 
-【記事のテーマ・キーワード】
-キーワード: ${keyword}
-記事の結論: ${conclusion}
+【選択されたターゲットキーワード情報】
+メインキーワード: ${row.mainKeyword}
+検索意図（読者の悩み）: ${row.searchIntent}
+想定読者: ${row.targetAudience}
+記事の結論: ${row.conclusion}
 
 【出力ルール】
-必ず以下の区切りタグを使って出力してください：
+必ず「${row.mainKeyword}」に関する読者の悩み・疑問に寄り添ったオリジナルなCTA文面を作成し、以下の区切りタグで出力してください：
 
 === MID_CTA_START ===
-### 「では、${client.name}はどうなのか？」と気になったら
-[読者が記事中盤で疑問を感じた時に、相談や自社の状況確認へ進めるための案内文（150〜250文字）]
+### 「では、${row.mainKeyword}について自社の場合はどうなのか？」と気になったら
+[${row.mainKeyword}について悩んでいる読者が、相談や状況確認へ進めるための案内文（150〜250文字）]
 
 【${client.name}への相談案内】
-[無料相談・お問い合わせ] ／ [公式サイト]
-▶ [関連ガイド：サービス詳細・選び方の基準]
+${isFaval ? '📞 052-680-8520 ／ [無料相談・お問い合わせ]' : '[無料相談・お問い合わせ] ／ [公式サイト]'}
+▶ [関連ガイド：${row.mainKeyword}の判断基準・詳細]
 === MID_CTA_END ===
 
 === END_CTA_START ===
-### [読者の背中を押す魅力的なクロージング見出し]
-[記事を読み終えた読者へ向けた、${client.name}の想い・特徴・無料相談へのお誘い文（200〜350文字）]
+### [${row.mainKeyword}で迷う読者の背中を押す魅力的なクロージング見出し]
+[記事を読み終えた読者へ向けた、${client.name}の特徴・想い・相談へのお誘い文（200〜350文字）]
 
 【無料相談・お問い合わせはこちら】
-[電話番号・公式相談窓口・WEB予約リンク]
+${isFaval ? '📞 052-680-8520 ／ [無料相談・お問い合わせはこちら]' : '[無料相談・お問い合わせフォーム]'}
+▶ [公式サイト・詳細案内]
 === END_CTA_END ===`;
 
   try {
@@ -138,29 +142,36 @@ async function generateStandaloneCtas(
       return { midCta, endCta };
     }
   } catch (err) {
-    console.warn('Standalone CTA generation exception:', err);
+    console.warn('Dynamic CTA generation exception:', err);
   }
 
-  return generateFallbackCtas(client, keyword, conclusion, promptType);
+  return generateDynamicFallbackCtas(client, row, promptType);
 }
 
-function generateFallbackCtas(client: Client, keyword: string, conclusion: string, promptType: PromptType): { midCta: string; endCta: string } {
+/**
+ * キーワード連動型の動的フォールバックCTA生成
+ */
+function generateDynamicFallbackCtas(client: Client, row: any, promptType: PromptType): { midCta: string; endCta: string } {
   const isFaval = client.name.includes('ファーバル') || client.id.includes('faval');
   const isPaqla = client.name.includes('PAQLA') || client.id.includes('paqla');
+  const kw = row.mainKeyword;
+  const conclusion = row.conclusion || `${kw}の判断基準`;
 
   if (promptType === 'recruiting') {
     return {
-      midCta: `### 「${client.name}で働くイメージをもっと知りたい」と思ったら
+      midCta: `### 「${kw}について、${client.name}で働くイメージをもっと知りたい」と思ったら
 
-求人票に書かれた条件だけでなく、実際の仕事内容や職場の雰囲気を確かめたい方は、カジュアル面談や会社見学をお気軽にご利用ください。
+求人票に書かれた条件だけでなく、${kw}に関する実際の仕事内容や職場の雰囲気を確かめたい方は、カジュアル面談や会社見学をお気軽にご利用ください。
 
 【会社見学・カジュアル面談のご案内】
 [募集要項・採用情報] ／ [会社見学・お問い合わせ]
 ▶ [職種別の仕事内容と1日の流れ]
 ▶ [${client.name}の教育・研修制度と働く環境]`,
-      endCta: `### 自分に合う仕事か、納得して判断してみませんか？
+      endCta: `### ${kw}で迷っているなら、まずは一度お話ししてみませんか？
 
-${client.name}では、応募前に仕事のリアルや求める姿勢をオープンにお伝えし、入社後のミスマッチを防ぐ採用を行っています。「自分にできるだろうか」と迷っているなら、まずは一度お気軽にお話ししてみませんか。
+${conclusion}
+
+${client.name}では、応募前に仕事のリアルや求める姿勢をオープンにお伝えし、入社後のミスマッチを防ぐ採用を行っています。「自分にできるだろうか」と迷っているなら、お気軽にご相談ください。
 
 【募集要項・エントリーはこちら】
 [応募フォーム・採用特設ページリンク]
@@ -170,14 +181,16 @@ ${client.name}では、応募前に仕事のリアルや求める姿勢をオー
 
   if (promptType === 'medical') {
     return {
-      midCta: `### 症状について専門医へのご相談をご検討中の方へ
+      midCta: `### ${kw}について専門医へのご相談をご検討中の方へ
 
-${client.name}では、患者様一人ひとりの症状やご不安に寄り添った丁寧な診察・カウンセリングを行っております。一人で抱え込まず、まずはお気軽にご相談ください。
+${client.name}では、${kw}でお悩みの方一人ひとりの症状やご不安に寄り添った丁寧な診察・カウンセリングを行っております。一人で抱え込まず、まずはお気軽にご相談ください。
 
 【Web予約・お問い合わせ】
 [Web予約・お問い合わせ窓口] ／ [公式サイト]
 ▶ [診療案内・初診の流れ]`,
-      endCta: `### 安心してご相談いただける環境を整えています
+      endCta: `### ${kw}の不安を解消し、安心してご相談いただける環境を整えています
+
+${conclusion}
 
 ${client.name}の診療方針・カウンセリングのご案内。症状についてお悩みの方は、お気軽にご相談ください。
 
@@ -187,46 +200,52 @@ ${client.name}の診療方針・カウンセリングのご案内。症状につ
     };
   }
 
-  // ファーバルデザイン様向け
+  // ファーバルデザイン様向け（キーワード完全連動）
   if (isFaval) {
     return {
-      midCta: `### 「では、自分の家はどうなのか？」と気になったら
+      midCta: `### 「では、${kw}について自分の家はどうなのか？」と気になったら
 
-築30年という年数だけで、建て替えかフルリノベーションかを決める必要はありません。大切なのは、今の建物にどれだけの価値が残っているのかを確認したうえで、これからどんな暮らしをしたいのかまで含めて考えることです。
+${conclusion}
+
+建物の状態やご家族の暮らし方は一軒一軒異なります。${kw}について自分たちの条件に当てはめた可能性を知りたい場合は、全体を一緒に見てくれる相手に相談してみることをお勧めします。
 
 株式会社ファーバルデザインは、一級建築士が窓口となり、最初の相談から設計・施工までワンストップで伴走します。名古屋で家づくり・リノベーションをご検討中の方は、まず全体像の整理からお気軽にどうぞ。
 
 📞 052-680-8520 ／ [無料相談・お問い合わせ]
-▶ [関連ガイド：フルリノベーション・建て替え判断ガイド]
+▶ [関連ガイド：${kw}の判断基準]
 ▶ [株式会社ファーバルデザインの想い・実績]`,
-      endCta: `### 建て替えるか、活かすか。まずは今の家の可能性から整理してみませんか？
+      endCta: `### ${kw}で迷ったら。まずは今の可能性から整理してみませんか？
 
-築30年という年数だけで、建て替えかフルリノベーションかを決める必要はありません。大切なのは、今の建物にどれだけの価値が残っているのかを確認したうえで、これからどんな暮らしをしたいのかまで含めて考えることです。
+${conclusion}
 
-判断基準を理解しても、実際の構造や劣化状態、希望する間取り、これから住み続けたい年数などは一軒一軒異なります。「この家は残せるのか」「リノベーションする価値があるのか」「建て替えたほうがいいのか」と迷っているなら、どちらかに決めてしまう前に、自分たちの条件を一度整理してみる方法があります。
+判断基準を理解しても、実際の構造や劣化状態、希望する間取り、これから住み続けたい年数などは一軒一軒異なります。「どう判断すべきか」と迷っているなら、答えを決めてしまう前に、自分たちの条件を一度整理してみる方法があります。
 
 株式会社ファーバルデザインは、新築・リノベーションに加え、庭・外構や不動産まで含めた住まいづくりをワンストップで提案しています。一級建築士が窓口となり、最初の相談から設計、施工、アフターサポートまで一貫して関わります。
 
-【建て替えかリノベーションか、一緒に整理する】
+【${kw}について一緒に整理する】
 📞 052-680-8520 ／ [無料相談・お問い合わせはこちら]
 ▶ 代表・スタッフの発信：[公式サイト]`,
     };
   }
 
-  // PAQLA様向け
+  // PAQLA様向け（キーワード完全連動）
   if (isPaqla) {
     return {
-      midCta: `### 「では、自社の場合はどうなのか？」と気になったら
+      midCta: `### 「では、${kw}について自社の場合はどうなのか？」と気になったら
 
-自社の強みやサービス内容は、社内にいると当たり前になっていて見えにくいものです。本当に伝えるべき価値は何なのか、どのように映像や営業資料に落とし込むべきか迷ったら、第三者の取材を活用してみる方法があります。
+${conclusion}
+
+自社の強みやサービス内容は、社内にいると当たり前になっていて見えにくいものです。${kw}について本当に伝えるべき価値は何なのか、どのように映像や営業資料に落とし込むべきか迷ったら、第三者の取材を活用してみる方法があります。
 
 株式会社PAQLAでは、テレビ局出身のディレクターが徹底した取材を行い、説明しづらい価値を小学3年生にもわかる言葉と映像へ翻訳します。
 
 【株式会社PAQLAへの相談案内】
 [無料相談・お問い合わせ] ／ [公式サイト]
-▶ [関連ガイド：映像制作・取材の流れ]
+▶ [関連ガイド：${kw}と映像制作・取材の流れ]
 ▶ [株式会社PAQLAの想い・実績]`,
-      endCta: `### 伝わらない価値を、伝わる力に変える。まずは一度お話ししてみませんか？
+      endCta: `### ${kw}の課題を、伝わる力に変える。まずは一度お話ししてみませんか？
+
+${conclusion}
 
 商品やサービスに確かな技術やこだわりがあるのに、営業現場や採用でうまく伝わらない。そのもどかしさは、決して情報が足りないからではなく、相手の理解に合わせた「翻訳」ができていないからです。
 
@@ -240,14 +259,18 @@ ${client.name}の診療方針・カウンセリングのご案内。症状につ
 
   // 汎用
   return {
-    midCta: `### 「では、自社の場合はどうなのか？」と気になったら
+    midCta: `### 「では、${kw}について自社の場合はどうなのか？」と気になったら
 
-状況は一社一社、一軒一軒異なります。自社やご自宅に当てはめた場合の具体的な可能性や判断基準を知りたい方は、${client.name}へお気軽にご相談ください。
+${conclusion}
+
+状況は一社一社、一軒一軒異なります。${kw}に関する具体的な可能性や判断基準を知りたい方は、${client.name}へお気軽にご相談ください。
 
 【${client.name}への相談案内】
 [無料相談・お問い合わせ] ／ [公式サイト]
-▶ [関連ガイド：サービス詳細・選び方の基準]`,
-    endCta: `### 迷ったときは、まず今の可能性から整理してみませんか？
+▶ [関連ガイド：${kw}の詳細・選び方の基準]`,
+    endCta: `### ${kw}で迷ったときは、まず今の可能性から整理してみませんか？
+
+${conclusion}
 
 最初から答えを決めてしまう必要はありません。${client.name}がお客様の想いに対話で寄り添い、最適な道筋を一緒に考えていきます。
 
@@ -359,13 +382,12 @@ export async function generateArticleWithClaude(
     .replace(/=== END_CTA_START ===[\s\S]*?=== END_CTA_END ===/gi, '')
     .trim();
 
-  // 2. 独立した「02_文中CTA」と「03_文末CTA」の生成（完全分離処理）
+  // 2. 選択されたキーワード情報（row）に100%連動した「02_文中CTA」と「03_文末CTA」の生成
   const { midCta, endCta } = await generateStandaloneCtas(
     anthropic,
     selectedModel,
     client,
-    row.mainKeyword,
-    row.conclusion,
+    row,
     promptType
   );
 
@@ -486,7 +508,7 @@ A. 具体的な要望が固まっていなくても問題ありません。現�
 まずは自社の現状と優先課題を整理し、納得できる判断を行いましょう。`;
   }
 
-  const { midCta, endCta } = generateFallbackCtas(client, row.mainKeyword, row.conclusion, promptType);
+  const { midCta, endCta } = generateDynamicFallbackCtas(client, row, promptType);
 
   return {
     title: `${row.mainKeyword}とは？失敗しない判断基準｜${client.name}`,
