@@ -4,9 +4,9 @@ import { buildRagContext } from './rag';
 
 export interface GenerationOutput {
   title: string;
-  contentMarkdown: string; // 01_ブログ本文.md
-  midCtaMarkdown?: string;  // 02_文中CTA.md
-  endCtaMarkdown?: string;  // 03_文末CTA.md
+  contentMarkdown: string; // 01_ブログ本文.md（純粋な本文のみ）
+  midCtaMarkdown?: string;  // 02_文中CTA.md（推奨挿入位置指示付き）
+  endCtaMarkdown?: string;  // 03_文末CTA.md（ボタン文言完結）
   metaDescription: string;
   suggestedTags: string[];
   usedKnowledgeIds: string[];
@@ -79,20 +79,19 @@ async function generateStandaloneCtas(
   row: any,
   promptType: PromptType
 ): Promise<{ midCta: string; endCta: string }> {
-  const isRecruiting = promptType === 'recruiting';
-  const isMedical = promptType === 'medical';
-  const isFaval = client.name.includes('ファーバル') || client.id.includes('faval');
-
   if (!anthropic) {
     return generateDynamicFallbackCtas(client, row, promptType);
   }
+
+  const isRecruiting = promptType === 'recruiting';
+  const isMedical = promptType === 'medical';
 
   const ctaPrompt = `以下の企業・店舗情報と【選択されたキーワード・設計情報】に基づき、この記事に差し込む【02_文中CTA】と【03_文末CTA】の2つのCTAパーツを、キーワードの内容（${row.mainKeyword}）に完全に連動させてMarkdown形式で作成してください。
 
 【対象企業・店舗】
 名称: ${client.name}
 業種: ${client.industry || '一般'}
-連絡先/相談窓口: ${isFaval ? '📞 052-680-8520 ／ 無料相談・お問い合わせ' : '無料相談・お問い合わせ'}
+モード: ${isRecruiting ? '採用特化' : isMedical ? '医療' : '通常（365ブログ）'}
 
 【選択されたターゲットキーワード情報】
 メインキーワード: ${row.mainKeyword}
@@ -100,22 +99,26 @@ async function generateStandaloneCtas(
 想定読者: ${row.targetAudience}
 記事の結論: ${row.conclusion}
 
-【出力ルール】
-必ず「${row.mainKeyword}」に関する読者の悩み・疑問に寄り添ったオリジナルなCTA文面を作成し、以下の区切りタグで出力してください：
-※【重要】：文末CTAには電話番号やURLリンクを付けず、最後の【ボタン文言】までで文章を終了してください。
+【出力ルール（重要）】
+※ 電話番号やURLリンクは含めず、最後の【ボタン文言】までで文章を終了してください。
+必ず以下の区切りタグで出力してください：
 
 === MID_CTA_START ===
-### 「では、${row.mainKeyword}について自社の場合はどうなのか？」と気になったら
+### 「では、${row.mainKeyword}について自社（自分の家）はどうなのか？」と気になったら
+
 [${row.mainKeyword}について悩んでいる読者が、相談や状況確認へ進めるための案内文（150〜250文字）]
 
-【${client.name}への相談案内】
-${isFaval ? '📞 052-680-8520 ／ [無料相談・お問い合わせ]' : '[無料相談・お問い合わせ] ／ [公式サイト]'}
-▶ [関連ガイド：${row.mainKeyword}の判断基準・詳細]
+${client.name}では、[会社の強み・特徴]を活かし、お客様の住まいや課題をワンストップでサポートしています。
+
+【${row.mainKeyword}について相談してみる】
 === MID_CTA_END ===
 
 === END_CTA_START ===
 ### [${row.mainKeyword}で迷う読者の背中を押す魅力的なクロージング見出し]
+
 [記事を読み終えた読者へ向けた、${client.name}の特徴・想い・相談へのお誘い文（200〜350文字）]
+
+${client.name}は、[強み・理念]を活かしながら、お客様のこれからの暮らし・未来を一緒に考えていきます。
 
 【${row.mainKeyword}について一緒に整理する】
 === END_CTA_END ===`;
@@ -147,7 +150,7 @@ ${isFaval ? '📞 052-680-8520 ／ [無料相談・お問い合わせ]' : '[無�
 }
 
 /**
- * キーワード連動型の動的フォールバックCTA生成（文末CTAはボタン文言までで完結）
+ * キーワード連動型の動的フォールバックCTA生成（電話番号・リンクなし、ボタン文言完結）
  */
 function generateDynamicFallbackCtas(client: Client, row: any, promptType: PromptType): { midCta: string; endCta: string } {
   const isFaval = client.name.includes('ファーバル') || client.id.includes('faval');
@@ -161,17 +164,16 @@ function generateDynamicFallbackCtas(client: Client, row: any, promptType: Promp
 
 求人票に書かれた条件だけでなく、${kw}に関する実際の仕事内容や職場の雰囲気を確かめたい方は、カジュアル面談や会社見学をお気軽にご利用ください。
 
-【会社見学・カジュアル面談のご案内】
-[募集要項・採用情報] ／ [会社見学・お問い合わせ]
-▶ [職種別の仕事内容と1日の流れ]
-▶ [${client.name}の教育・研修制度と働く環境]`,
+${client.name}では、応募前に仕事のリアルや求める姿勢をオープンにお伝えし、入社後のミスマッチを防ぐ採用を行っています。
+
+【会社見学・カジュアル面談について相談する】`,
       endCta: `### ${kw}で迷っているなら、まずは一度お話ししてみませんか？
 
 ${conclusion}
 
 ${client.name}では、応募前に仕事のリアルや求める姿勢をオープンにお伝えし、入社後のミスマッチを防ぐ採用を行っています。「自分にできるだろうか」と迷っているなら、お気軽にご相談ください。
 
-【募集要項・エントリーはこちら】`,
+【募集要項・エントリーについて確認する】`,
     };
   }
 
@@ -181,33 +183,31 @@ ${client.name}では、応募前に仕事のリアルや求める姿勢をオー
 
 ${client.name}では、${kw}でお悩みの方一人ひとりの症状やご不安に寄り添った丁寧な診察・カウンセリングを行っております。一人で抱え込まず、まずはお気軽にご相談ください。
 
-【Web予約・お問い合わせ】
-[Web予約・お問い合わせ窓口] ／ [公式サイト]
-▶ [診療案内・初診の流れ]`,
+${client.name}では、初診時の丁寧な事前説明を大切にしています。
+
+【${kw}の初診相談を予約する】`,
       endCta: `### ${kw}の不安を解消し、安心してご相談いただける環境を整えています
 
 ${conclusion}
 
 ${client.name}の診療方針・カウンセリングのご案内。症状についてお悩みの方は、お気軽にご相談ください。
 
-【初診Web予約・ご相談窓口】`,
+【${kw}の相談窓口を確認する】`,
     };
   }
 
-  // ファーバルデザイン様向け（実物Wordファイル準拠）
+  // ファーバルデザイン様向け（実物Wordファイル完全準拠）
   if (isFaval) {
     return {
-      midCta: `### 「では、${kw}について自分の家はどうなのか？」と気になったら
+      midCta: `### 「では、自分の家はどうなのか？」と気になったら
 
 ${conclusion}
 
-建物の状態やご家族の暮らし方は一軒一軒異なります。${kw}について自分たちの条件に当てはめた可能性を知りたい場合は、全体を一緒に見てくれる相手に相談してみることをお勧めします。
+「まだリノベーションすると決めていない」「建て替えと迷っている」という段階でも、一人で結論を出す必要はありません。まずは今の家の状態と、これからどんな暮らしをしたいのかを整理するところから考えてみてはいかがでしょうか。
 
-株式会社ファーバルデザインは、一級建築士が窓口となり、最初の相談から設計・施工までワンストップで伴走します。名古屋で家づくり・リノベーションをご検討中の方は、まず全体像の整理からお気軽にどうぞ。
+株式会社ファーバルデザインでは、一級建築士が窓口となり、新築・リノベーションの設計から施工までワンストップで対応しています。建物だけでなく「どんな暮らしがしたいか」を伺いながら、一緒に住まいの可能性を考えていきます。
 
-📞 052-680-8520 ／ [無料相談・お問い合わせ]
-▶ [関連ガイド：${kw}の判断基準]
-▶ [株式会社ファーバルデザインの想い・実績]`,
+【今の家を活かせるか相談してみる】`,
       endCta: `### 建て替えるか、活かすか。まずは今の家の可能性から整理してみませんか？
 
 ${conclusion}
@@ -225,7 +225,7 @@ ${conclusion}
   // PAQLA様向け
   if (isPaqla) {
     return {
-      midCta: `### 「では、${kw}について自社の場合はどうなのか？」と気になったら
+      midCta: `### 「では、自社の場合はどうなのか？」と気になったら
 
 ${conclusion}
 
@@ -233,10 +233,7 @@ ${conclusion}
 
 株式会社PAQLAでは、テレビ局出身のディレクターが徹底した取材を行い、説明しづらい価値を小学3年生にもわかる言葉と映像へ翻訳します。
 
-【株式会社PAQLAへの相談案内】
-[無料相談・お問い合わせ] ／ [公式サイト]
-▶ [関連ガイド：${kw}と映像制作・取材の流れ]
-▶ [株式会社PAQLAの想い・実績]`,
+【自社の価値の翻訳について相談してみる】`,
       endCta: `### ${kw}の課題を、伝わる力に変える。まずは一度お話ししてみませんか？
 
 ${conclusion}
@@ -245,21 +242,19 @@ ${conclusion}
 
 株式会社PAQLAは、年間100本以上の映像制作実績とテレビ局で培った取材力・構成力で、貴社の本質的な価値を掘り起こし、顧客や求職者の心に届く表現へ変換します。
 
-【無料相談・お問い合わせはこちら】`,
+【自社の強みの映像化・PRについて相談する】`,
     };
   }
 
   // 汎用
   return {
-    midCta: `### 「では、${kw}について自社の場合はどうなのか？」と気になったら
+    midCta: `### 「では、自社の場合はどうなのか？」と気になったら
 
 ${conclusion}
 
 状況は一社一社、一軒一軒異なります。${kw}に関する具体的な可能性や判断基準を知りたい方は、${client.name}へお気軽にご相談ください。
 
-【${client.name}への相談案内】
-[無料相談・お問い合わせ] ／ [公式サイト]
-▶ [関連ガイド：${kw}の詳細・選び方の基準]`,
+【${client.name}に相談してみる】`,
     endCta: `### ${kw}で迷ったときは、まず今の可能性から整理してみませんか？
 
 ${conclusion}
@@ -271,62 +266,50 @@ ${conclusion}
 }
 
 /**
- * 本文中の最適な位置（第2章/H2見出し2の直後）に「文中CTA挿入推奨位置」コメントを自動挿入する関数
+ * 本文中の第2章末尾の1文を抽出し、文中CTAの冒頭に「推奨する挿入位置」を付与する関数
  */
-function injectMidCtaPlaceholder(markdown: string): string {
-  const lines = markdown.split('\n');
+function buildMidCtaWithPlacementGuide(midCtaBody: string, articleMarkdown: string): string {
+  const lines = articleMarkdown.split('\n');
+  let targetSentence = '';
   let h2Count = 0;
-  let inserted = false;
-  const newLines: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    newLines.push(line);
-
-    // H2見出し（## ）をカウント
-    if (line.trim().startsWith('## ') && !line.trim().includes('目次') && !line.trim().includes('まとめ') && !line.trim().includes('よくある質問')) {
+    const line = lines[i].trim();
+    if (line.startsWith('## ') && !line.includes('目次') && !line.includes('まとめ') && !line.includes('よくある質問')) {
       h2Count++;
-      // 2つ目のH2セクションの内容が終わる箇所（3つ目のH2の手前、または2つ目のH2の数段落後）に挿入
-      if (h2Count === 2 && !inserted) {
-        // 次のH2またはFAQの手前を探す
-        let targetIdx = i + 1;
-        while (targetIdx < lines.length) {
-          if (lines[targetIdx].trim().startsWith('## ') || lines[targetIdx].trim().startsWith('---')) {
+      if (h2Count === 3) {
+        // 3つ目のH2の直前にある最後の文章を探す
+        for (let j = i - 1; j >= 0; j--) {
+          const prev = lines[j].trim();
+          if (prev && !prev.startsWith('#') && !prev.startsWith('---') && prev.length > 15) {
+            targetSentence = prev;
             break;
           }
-          targetIdx++;
         }
-        // ループ内で挿入位置をマーク
+        break;
       }
     }
   }
 
-  // 2つ目のH2セクションの内容の後に挿入する処理
-  const finalLines: string[] = [];
-  let currentH2 = 0;
-  let hasInjected = false;
-
-  for (let j = 0; j < lines.length; j++) {
-    const l = lines[j];
-    if (l.trim().startsWith('## ') && !l.trim().includes('目次') && !l.trim().includes('まとめ') && !l.trim().includes('よくある質問')) {
-      currentH2++;
-      if (currentH2 === 3 && !hasInjected) {
-        // 3つ目のH2の直前に文中CTA挿入位置コメントを挿入
-        finalLines.push('');
-        finalLines.push('<!-- 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください） -->');
-        finalLines.push('');
-        hasInjected = true;
-      }
-    }
-    finalLines.push(l);
+  // 見つからなかった場合のフォールバック
+  if (!targetSentence) {
+    const paras = lines.filter((l) => l.trim().length > 25 && !l.startsWith('#') && !l.startsWith('---'));
+    targetSentence = paras[Math.min(3, paras.length - 1)] || '構造と設計の両面から確認し、残す価値を判断することが重要になります。';
   }
 
-  // 3つ目のH2がない場合のフォールバック（目次の後、または中央付近）
-  if (!hasInjected) {
-    return markdown + '\n\n<!-- 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください） -->';
-  }
+  // 1文だけを取り出す（。で区切る）
+  const firstPeriod = targetSentence.indexOf('。');
+  const sentenceOnly = firstPeriod !== -1 ? targetSentence.slice(0, firstPeriod + 1) : targetSentence;
 
-  return finalLines.join('\n');
+  return `推奨する挿入位置
+この文章の
+直後
+です。
+「${sentenceOnly}」
+
+---
+
+${midCtaBody}`;
 }
 
 export async function generateArticleWithClaude(
@@ -424,18 +407,16 @@ export async function generateArticleWithClaude(
     .replace(/\*?\*?文字数[：:]\s*[\d,]+文字?\*?\*?\s*$/i, '')
     .trim();
 
-  // 万が一含まれていたタグの完全サニタイズ
+  // 万が一含まれていたタグやコメントの完全サニタイズ（本文を純粋に保つ）
   articleText = articleText
     .replace(/=== ARTICLE_START ===/gi, '')
     .replace(/=== ARTICLE_END ===/gi, '')
     .replace(/=== MID_CTA_START ===[\s\S]*?=== MID_CTA_END ===/gi, '')
     .replace(/=== END_CTA_START ===[\s\S]*?=== END_CTA_END ===/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
     .trim();
 
-  // 本文中の最適な位置に「文中CTA挿入推奨位置」コメントを自動挿入
-  articleText = injectMidCtaPlaceholder(articleText);
-
-  // 2. 選択されたキーワード情報（row）に100%連動した「02_文中CTA」と「03_文末CTA」の生成（文末はボタン文言までで完結）
+  // 2. 独立した「02_文中CTA」と「03_文末CTA」の生成
   const { midCta, endCta } = await generateStandaloneCtas(
     anthropic,
     selectedModel,
@@ -443,6 +424,9 @@ export async function generateArticleWithClaude(
     row,
     promptType
   );
+
+  // 3. 文中CTAの冒頭に「推奨する挿入位置（この文章の直後です）」を付与
+  const finalMidCta = buildMidCtaWithPlacementGuide(midCta, articleText);
 
   // タイトル（H1）の抽出
   const lines = articleText.split('\n');
@@ -465,9 +449,9 @@ export async function generateArticleWithClaude(
 
   return {
     title,
-    contentMarkdown: articleText, // 本文（文中CTA挿入位置コメント入り）
-    midCtaMarkdown: midCta || undefined,
-    endCtaMarkdown: endCta || undefined,
+    contentMarkdown: articleText, // 本文（純粋な本文のみ）
+    midCtaMarkdown: finalMidCta,   // 文中CTA（「この文章の直後です」付き）
+    endCtaMarkdown: endCta,        // 文末CTA（ボタン文言完結）
     metaDescription: row.conclusion || '',
     suggestedTags: Array.from(new Set(tags)),
     usedKnowledgeIds: ragResult.usedKnowledgeIds,
@@ -506,8 +490,6 @@ ${row.conclusion}
 ### すぐに受診すべき症状
 ### 経過観察できるケース
 ### 迷ったときの判断基準
-
-<!-- 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください） -->
 
 ## ${client.name}でよくある質問（FAQ）
 ### Q1. 治療期間の目安はどのくらいですか？
@@ -552,8 +534,6 @@ ${row.conclusion}
 ### 基準1: 目的の明確化
 ### 基準2: 実績と提案力の確認
 
-<!-- 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください） -->
-
 ## ${client.name}の現場実態・エピソード
 ${row.uniquePoint || '事実に基づき、最適な提案を心がけています。'}
 
@@ -566,11 +546,12 @@ A. 具体的な要望が固まっていなくても問題ありません。現�
   }
 
   const { midCta, endCta } = generateDynamicFallbackCtas(client, row, promptType);
+  const finalMidCta = buildMidCtaWithPlacementGuide(midCta, article);
 
   return {
     title: `${row.mainKeyword}とは？失敗しない判断基準｜${client.name}`,
     contentMarkdown: article,
-    midCtaMarkdown: midCta,
+    midCtaMarkdown: finalMidCta,
     endCtaMarkdown: endCta,
     metaDescription: row.conclusion || '',
     suggestedTags: [row.mainKeyword, client.name],

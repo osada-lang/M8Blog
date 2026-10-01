@@ -98,50 +98,15 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
     }
   };
 
-  const renderCtaCard = (lines: string[], key: string) => (
-    <div key={key} className="my-8 p-6 sm:p-8 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5] space-y-4 shadow-sm text-xs sm:text-sm font-sans">
-      {lines.map((bLine, bIdx) => {
-        const bTrimmed = bLine.trim();
-        if (!bTrimmed) return null;
-
-        if (bTrimmed.startsWith('▶') || bTrimmed.includes('関連ガイド') || bTrimmed.includes('想い') || bTrimmed.includes('実績と考え方')) {
-          return (
-            <div key={bIdx} className="p-3 sm:p-3.5 bg-white border border-[#c5a880]/60 rounded-xl text-xs sm:text-sm text-[#1d1d1f] font-semibold hover:border-[#0066cc] transition">
-              <span dangerouslySetInnerHTML={{ __html: formatInline(bTrimmed) }} />
-            </div>
-          );
-        }
-
-        if (bTrimmed.includes('この記事のテーマを') || bTrimmed.includes('整理したい方へ')) {
-          return (
-            <p key={bIdx} className="font-bold text-[#1d1d1f] text-sm sm:text-base tracking-tight" dangerouslySetInnerHTML={{ __html: formatInline(bTrimmed) }} />
-          );
-        }
-
-        return (
-          <p key={bIdx} className="text-[#515154] leading-relaxed" dangerouslySetInnerHTML={{ __html: formatInline(bTrimmed) }} />
-        );
-      })}
-    </div>
-  );
-
   const flushBlockquote = (key: string) => {
     if (blockquoteLines.length > 0) {
-      const fullText = blockquoteLines.join('\n');
-      const isCtaBox = fullText.includes('この記事のテーマを') || fullText.includes('整理したい方へ') || fullText.includes('無料相談') || fullText.includes('関連ガイド');
-
-      if (isCtaBox) {
-        renderedElements.push(renderCtaCard(blockquoteLines, key));
-      } else {
-        renderedElements.push(
-          <blockquote key={key} className="my-6 p-5 rounded-xl bg-[#f5f5f7] border-l-4 border-[#86868b] text-[#555] text-xs sm:text-sm leading-relaxed italic space-y-1 font-serif">
-            {blockquoteLines.map((bLine, bIdx) => (
-              <p key={bIdx} dangerouslySetInnerHTML={{ __html: formatInline(bLine) }} />
-            ))}
-          </blockquote>
-        );
-      }
-
+      renderedElements.push(
+        <blockquote key={key} className="my-6 p-5 rounded-xl bg-[#f5f5f7] border-l-4 border-[#86868b] text-[#555] text-xs sm:text-sm leading-relaxed italic space-y-1 font-serif">
+          {blockquoteLines.map((bLine, bIdx) => (
+            <p key={bIdx} dangerouslySetInnerHTML={{ __html: formatInline(bLine) }} />
+          ))}
+        </blockquote>
+      );
       blockquoteLines = [];
       inBlockquote = false;
     }
@@ -186,17 +151,6 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
       continue;
     }
 
-    // 文中CTA挿入推奨位置のガイドバー表示
-    if (trimmed.includes('文中CTA挿入推奨位置') || trimmed.includes('02_文中CTA')) {
-      renderedElements.push(
-        <div key={i} className="my-8 p-3.5 bg-amber-50 border border-dashed border-amber-300 rounded-xl text-center text-xs text-amber-900 font-sans font-medium flex items-center justify-center space-x-2">
-          <span>💡 【文中CTA挿入推奨位置】（※ブログ投稿時はここに「02_文中CTA」を配置してください）</span>
-        </div>
-      );
-      i++;
-      continue;
-    }
-
     if (trimmed.startsWith('# ')) {
       renderedElements.push(
         <h1 key={i} className="text-2xl sm:text-3xl font-normal text-[#1d1d1f] tracking-tight leading-tight mt-6 mb-8 pb-4 border-b-2 border-[#1d1d1f]">
@@ -229,6 +183,17 @@ const RichBlogRenderer: React.FC<{ markdown: string }> = ({ markdown }) => {
 
     if (/^[-*_]{3,}$/.test(trimmed)) {
       renderedElements.push(<hr key={i} className="my-8 border-t border-[#e5e5ea]" />);
+      i++;
+      continue;
+    }
+
+    // ボタン文言の装飾（【〇〇】）
+    if (trimmed.startsWith('【') && trimmed.endsWith('】') && trimmed.length < 50 && (trimmed.includes('相談') || trimmed.includes('整理') || trimmed.includes('エントリー') || trimmed.includes('予約'))) {
+      renderedElements.push(
+        <div key={i} className="my-6 p-3.5 sm:p-4 bg-white border-2 border-[#c5a880] rounded-xl text-center text-xs sm:text-sm text-[#1d1d1f] font-bold shadow-sm font-sans hover:border-[#0066cc] transition">
+          {trimmed}
+        </div>
+      );
       i++;
       continue;
     }
@@ -276,7 +241,6 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
   onRecheckFact,
   isRechecking = false,
 }) => {
-  // 表示パーツ切り替え: 'article' (本文) | 'midCta' (文中CTA) | 'endCta' (文末CTA)
   const [activePart, setActivePart] = useState<'article' | 'midCta' | 'endCta'>('article');
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
   const [copiedPart, setCopiedPart] = useState<string | null>(null);
@@ -307,7 +271,6 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
     setTimeout(() => setCopiedPart(null), 2000);
   };
 
-  // ZIPファイル一括ダウンロード機能
   const handleDownloadZip = async () => {
     setIsZipping(true);
     try {
@@ -346,7 +309,6 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
 `;
       folder.file('記事情報_メタデータ.txt', metadataText);
 
-      // ZIP生成＆ダウンロード
       const blob = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -398,16 +360,14 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {/* コピーボタン */}
             <button
               onClick={handleCopyCurrent}
-              className="apple-secondary-btn flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-medium"
+              className="apple-secondary-btn flex items-center space-x-1.5 px-3.5 sm:px-4 py-1.5 text-xs font-medium"
             >
               {copiedPart === activePart ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedPart === activePart ? 'コピー完了' : `${activePart === 'article' ? '本文' : activePart === 'midCta' ? '文中CTA' : '文末CTA'}をコピー`}</span>
             </button>
 
-            {/* 📦 ZIP一括ダウンロードボタン */}
             <button
               onClick={handleDownloadZip}
               disabled={isZipping}
@@ -440,9 +400,8 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
 
       {/* メインコンテンツ */}
       <div className="space-y-6">
-        {/* パーツ切り替えタブ（本文 / 文中CTA / 文末CTA） ＆ 表示モード */}
+        {/* パーツ切り替えタブ */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 apple-card p-3 sm:px-4 sm:py-2.5">
-          {/* 3分割パーツ選択 */}
           <div className="inline-flex p-1 bg-[#f5f5f7] border border-[#e5e5ea] rounded-xl text-xs font-medium">
             <button
               type="button"
@@ -484,12 +443,11 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
             </button>
           </div>
 
-          {/* プレビュー / 編集 ＆ 文字数 */}
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-1 bg-[#f5f5f7] p-1 rounded-full border border-[#e5e5ea] text-xs font-medium">
               <button
                 onClick={() => setViewMode('preview')}
-                className={`px-3 py-1 rounded-full flex items-center space-x-1 transition ${
+                className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
                   viewMode === 'preview' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
                 }`}
               >
@@ -498,7 +456,7 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
               </button>
               <button
                 onClick={() => setViewMode('edit')}
-                className={`px-3 py-1 rounded-full flex items-center space-x-1 transition ${
+                className={`px-3.5 py-1 rounded-full flex items-center space-x-1 transition ${
                   viewMode === 'edit' ? 'apple-pill-btn' : 'text-[#86868b] hover:text-[#1d1d1f]'
                 }`}
               >
@@ -518,21 +476,11 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
         {/* 本文エリア */}
         {viewMode === 'preview' ? (
           <div className="apple-card p-6 sm:p-12 text-[#1d1d1f] bg-white shadow-sm border border-[#e5e5ea]">
-            {activePart === 'article' ? (
-              <RichBlogRenderer markdown={draft.contentMarkdown} />
-            ) : activePart === 'midCta' ? (
-              <div className="p-6 sm:p-8 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5]">
-                <RichBlogRenderer markdown={draft.midCtaMarkdown || ''} />
-              </div>
-            ) : (
-              <div className="p-6 sm:p-8 rounded-2xl border-2 border-[#c5a880]/70 bg-[#faf8f5]">
-                <RichBlogRenderer markdown={draft.endCtaMarkdown || ''} />
-              </div>
-            )}
+            <RichBlogRenderer markdown={currentContent} />
           </div>
         ) : (
           <textarea
-            rows={24}
+            rows={26}
             className="w-full apple-card p-4 sm:p-6 text-xs sm:text-sm text-[#1d1d1f] font-mono leading-relaxed focus:outline-none focus:border-[#0066cc]"
             value={currentContent}
             onChange={(e) => handleContentChange(e.target.value)}
@@ -567,7 +515,6 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
 
         {/* 検証結果詳細 ＆ 参照文献 */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2">
-          {/* 左側: ファクトチェック指摘 ＆ Web裏付けソースレポート */}
           <div className="md:col-span-8 apple-card p-5 sm:p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-[#e5e5ea] pb-3">
               <div className="flex items-center space-x-2">
@@ -628,7 +575,7 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
                             {isCritical
                               ? '🚨 重大警告（ハルシネーション検知）'
                               : issue.type === 'medical_law_risk'
-                              ? '🏥 薬機法/医療広告'
+                              ? '🏥 薬機法/医療広告リスク'
                               : issue.type === 'web_grounding_info'
                               ? '🌐 資料外のWeb裏付け調査'
                               : '📝 要確認事項'}
@@ -674,7 +621,6 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
                         </div>
                       )}
 
-                      {/* 🔗 クリック可能な根拠ソースURL */}
                       {issue.sourceUrl && (
                         <div className="pt-1 flex items-center space-x-1.5 text-[11px] bg-white p-2 rounded-lg border border-[#e5e5ea]">
                           <Globe className="w-3.5 h-3.5 text-[#0066cc] shrink-0" />
