@@ -243,7 +243,6 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
 }) => {
   const [activePart, setActivePart] = useState<'article' | 'midCta' | 'endCta'>('article');
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
-  const [copiedPart, setCopiedPart] = useState<string | null>(null);
   const [isZipping, setIsZipping] = useState(false);
 
   const factCheck = draft.factCheck;
@@ -263,12 +262,6 @@ export const DraftEditor: React.FC<DraftEditorProps> = ({
     } else if (activePart === 'endCta') {
       onUpdateDraft({ ...draft, endCtaMarkdown: newContent, updatedAt: new Date().toISOString() });
     }
-  };
-
-  const handleCopyCurrent = () => {
-    navigator.clipboard.writeText(currentContent);
-    setCopiedPart(activePart);
-    setTimeout(() => setCopiedPart(null), 2000);
   };
 
   const handleDownloadZip = async () => {
@@ -359,19 +352,11 @@ ${new Date(draft.createdAt).toLocaleString('ja-JP')}
             <h2 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">{draft.title}</h2>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <button
-              onClick={handleCopyCurrent}
-              className="apple-secondary-btn flex items-center space-x-1.5 px-3.5 sm:px-4 py-1.5 text-xs font-medium"
-            >
-              {copiedPart === activePart ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedPart === activePart ? 'コピー完了' : `${activePart === 'article' ? '本文' : activePart === 'midCta' ? '文中CTA' : '文末CTA'}をコピー`}</span>
-            </button>
-
+          <div className="flex items-center space-x-2 shrink-0">
             <button
               onClick={handleDownloadZip}
               disabled={isZipping}
-              className="apple-pill-btn flex items-center space-x-1.5 px-4 py-1.5 text-xs font-semibold shadow-sm"
+              className="apple-pill-btn flex items-center space-x-1.5 px-4 py-2 text-xs font-semibold shadow-sm"
             >
               <Archive className="w-3.5 h-3.5" />
               <span>{isZipping ? 'ZIP生成中...' : '📦 ZIP一括ダウンロード'}</span>
